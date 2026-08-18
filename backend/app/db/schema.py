@@ -1,9 +1,9 @@
 from datetime import date, datetime
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime
+from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime, UniqueConstraint
 
 from app.core.config import config
 
@@ -21,22 +21,19 @@ class Season(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String)
-    start_date: Mapped[date] = mapped_column(Date)
-    end_date: Mapped[date] = mapped_column(Date)
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # list of teams for each season
-    teams: Mapped[list["Team"]] = relationship(back_populates="season")
-    gameweeks: Mapped[list["Gameweek"]] = relationship(back_populates="season")
 
 
 class Team(Base):
     __tablename__ = "teams"
+    __table_args__ = (UniqueConstraint("season_id", "fpl_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
 
-    fpl_id: Mapped[int] = mapped_column(nullable=False, unique=True)
+    fpl_id: Mapped[int] = mapped_column(nullable=False)
 
     code: Mapped[int] = mapped_column(nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -49,7 +46,7 @@ class Team(Base):
     points: Mapped[int] = mapped_column(nullable=False, default=0)
     position: Mapped[int] = mapped_column(nullable=False)
 
-    strength: Mapped[int] = mapped_column()
+    strength: Mapped[int | None] = mapped_column()
     strength_overall_home: Mapped[int] = mapped_column()
     strength_overall_away: Mapped[int] = mapped_column()
     strength_attack_home: Mapped[int] = mapped_column()
@@ -57,28 +54,21 @@ class Team(Base):
     strength_defence_home: Mapped[int] = mapped_column()
     strength_defence_away: Mapped[int] = mapped_column()
 
-    unvailable: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # to refer to {team}.season directly
-    season: Mapped["Season"] = relationship(back_populates="teams")
-
-    players: Mapped[list["Player"]] = relationship(back_populates="team")
+    unavailable: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Position(Base):
     __tablename__ = "positions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    fpl_id: Mapped[int] = mapped_column(unique=True)
+    fpl_id: Mapped[int] = mapped_column()
 
-    code: Mapped[str] = mapped_column(String)               # GK, DEF, MID, FWD
+    code: Mapped[str] = mapped_column(String)               # GKP, DEF, MID, FWD
     name: Mapped[str] = mapped_column(String)               
 
     squad_select: Mapped[int] = mapped_column(default=0)    # number of plyers in that position that a manager must have
     min_play: Mapped[int] = mapped_column()                 # min number of position in squad
     max_play: Mapped[int] = mapped_column()                 # max number of position in squad
-
-    players: Mapped[list["Player"]] = relationship(back_populates="position")
 
 
 class Player(Base):
@@ -88,7 +78,7 @@ class Player(Base):
     fpl_id: Mapped[int] = mapped_column(unique=True)
 
     code: Mapped[int] = mapped_column()
-    opta_code: Mapped[str] = mapped_column(String)
+    opta_code: Mapped[str | None] = mapped_column(String)
 
     first_name: Mapped[str] = mapped_column(String)
     last_name: Mapped[str] = mapped_column(String)
@@ -96,7 +86,7 @@ class Player(Base):
     web_name: Mapped[str] = mapped_column(String)
 
     birth_date: Mapped[date | None] = mapped_column(Date)
-    region: Mapped[str | None] = mapped_column(String)
+    region: Mapped[int | None] = mapped_column()
 
     photo: Mapped[str | None] = mapped_column(String)
 
@@ -111,16 +101,10 @@ class Player(Base):
     can_transact: Mapped[bool] = mapped_column(Boolean)
     removed: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Relation to
-    team: Mapped["Team"] = relationship(back_populates="players")
-    position: Mapped["Position"] = relationship(back_populates="players")
-
-    # Relations from
-    player_season_stats: Mapped[list["PlayerSeasonStats"]] = relationship(back_populates="player")
-
 
 class PlayerSeasonStats(Base):
     __tablename__ = "players_seasons_stats"
+    __table_args__ = (UniqueConstraint("player_id", "season_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
@@ -130,7 +114,7 @@ class PlayerSeasonStats(Base):
     minutes: Mapped[int] = mapped_column()
     starts: Mapped[int] = mapped_column()
 
-    goal_scored: Mapped[int] = mapped_column()
+    goals_scored: Mapped[int] = mapped_column()
     assists: Mapped[int] = mapped_column()
     clean_sheets: Mapped[int] = mapped_column()
     goals_conceded: Mapped[int] = mapped_column()
@@ -175,6 +159,9 @@ class PlayerSeasonStats(Base):
 
     event_points: Mapped[int] = mapped_column()
 
+    chance_of_playing_next_round: Mapped[int | None] = mapped_column()
+    chance_of_playing_this_round: Mapped[int | None] = mapped_column()
+
     ep_next: Mapped[float | None] = mapped_column(Float)
     ep_this: Mapped[float | None] = mapped_column(Float)
 
@@ -184,11 +171,10 @@ class PlayerSeasonStats(Base):
     value_form: Mapped[float] = mapped_column(Float)
     value_season: Mapped[float] = mapped_column(Float)
 
-    player: Mapped["Player"] = relationship(back_populates="player_season_stats")
-
 
 class Gameweek(Base):
     __tablename__ = "gameweeks"
+    __table_args__ = (UniqueConstraint("season_id", "number"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     fpl_id: Mapped[int] = mapped_column()
@@ -199,27 +185,25 @@ class Gameweek(Base):
     name: Mapped[str] = mapped_column(String)
 
     deadline_time: Mapped[datetime] = mapped_column(DateTime)
-    release_time: Mapped[datetime] = mapped_column(DateTime)
+    release_time: Mapped[datetime | None] = mapped_column(DateTime)
 
     finished: Mapped[bool] = mapped_column(Boolean)
     data_checked: Mapped[bool] = mapped_column(Boolean)
     released: Mapped[bool] = mapped_column(Boolean)
 
-    average_score: Mapped[float] = mapped_column(Float)
-    highest_score: Mapped[int] = mapped_column()
+    average_score: Mapped[int] = mapped_column()
+    highest_score: Mapped[int | None] = mapped_column()
 
     ranked_count: Mapped[int] = mapped_column()
     transfers_made: Mapped[int] = mapped_column()
 
-    highest_scoring_entry: Mapped[int] = mapped_column()
+    highest_scoring_entry: Mapped[int | None] = mapped_column()
 
-    most_selected_player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
-    most_transferred_in_player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
-    most_captained_player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
-    most_vice_captained_player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
-    top_player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
-
-    season: Mapped["Season"] = relationship(back_populates="gameweeks")
+    most_selected_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
+    most_transferred_in_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
+    most_captained_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
+    most_vice_captained_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
+    top_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
 
 
 class Phase(Base):
@@ -235,7 +219,7 @@ class Phase(Base):
     start_gameweek_id: Mapped[int] = mapped_column(ForeignKey("gameweeks.id"))
     end_gameweek_id: Mapped[int] = mapped_column(ForeignKey("gameweeks.id"))
 
-    highest_score: Mapped[int] = mapped_column()
+    highest_score: Mapped[int | None] = mapped_column()
 
 
 class Chip(Base):
@@ -243,6 +227,7 @@ class Chip(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     fpl_id: Mapped[int] = mapped_column()
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
 
     name: Mapped[str] = mapped_column(String)
     number: Mapped[int] = mapped_column()
@@ -256,7 +241,7 @@ class GameRule(Base):
     __tablename__ = "game_rules"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), unique=True)
 
     squad_size: Mapped[int] = mapped_column(default=15)
     starting_size: Mapped[int] = mapped_column(default=11)
@@ -277,10 +262,12 @@ class GameRule(Base):
 
 class ScoringRule(Base):
     __tablename__ = "scoring_rules"
+    __table_args__ = (UniqueConstraint("season_id", "stat", "position_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
 
+    stat: Mapped[str] = mapped_column(String)
     position_id: Mapped[int | None] = mapped_column(ForeignKey("positions.id"))
 
     points: Mapped[int] = mapped_column()
