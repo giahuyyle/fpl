@@ -10,10 +10,10 @@ class Config(BaseSettings):
     debug: bool = os.getenv("DEBUG", "true").lower() == "true"
 
     db_user: str = os.getenv("DB_USER", "postgres")
-    db_password: str = os.getenv("DB_PASSWORD", "admin")
+    db_password: str = os.getenv("DB_PASSWORD", "password")
     db_host: str = os.getenv("DB_HOST", "localhost")
-    db_port: int = os.getenv("DB_PORT", 5432)
-    db_name: str = os.getenv("DB_NAME", "")
+    db_port: int = os.getenv("DB_PORT", 5433)
+    db_name: str = os.getenv("DB_NAME", "fpl")
 
     @property
     def postgresql_db_url(self):
