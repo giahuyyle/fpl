@@ -1,1 +1,271 @@
-Fantasy Premier League Clone
+# Fantasy Premier League Clone
+
+A full-stack Fantasy Premier League application built with FastAPI, PostgreSQL,
+SQLAlchemy, React, and TypeScript. The backend exposes FPL reference data through
+a REST API and includes a repeatable ingestion pipeline for the bundled FPL
+bootstrap dataset.
+
+## Tech stack
+
+- Backend: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
+- Database: PostgreSQL 17
+- Frontend: React 19, TypeScript, Vite
+- Local infrastructure: Docker Compose
+
+## Project structure
+
+```text
+fpl/
+├── backend/
+│   ├── app/
+│   │   ├── api/          # FastAPI routes
+│   │   ├── db/           # SQLAlchemy models and database session
+│   │   ├── ingest/       # Bootstrap loading and ingestion pipeline
+│   │   ├── models/       # Pydantic request/response models
+│   │   └── services/     # Database query and application services
+│   ├── data/             # Bundled FPL bootstrap JSON
+│   ├── migrations/       # Alembic database migrations
+│   └── main.py           # FastAPI application
+├── frontend/             # React and Vite application
+└── docker-compose.yml    # PostgreSQL and backend services
+```
+
+## Prerequisites
+
+- Docker Desktop with Docker Compose
+- Node.js and npm for the frontend
+- Python 3.12 if running the backend outside Docker
+
+## Environment configuration
+
+The project uses two environment files:
+
+- `/.env` supplies PostgreSQL container settings to Docker Compose.
+- `/backend/.env` supplies database settings to the FastAPI backend.
+
+Create them from the provided template:
+
+```bash
+cp backend/.env.copy .env
+cp backend/.env.copy backend/.env
+```
+
+For local development, a suitable configuration is:
+
+```dotenv
+DB_USER=postgres
+DB_PASSWORD=password
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=fpl
+DEBUG=true
+```
+
+Keep `DB_USER`, `DB_PASSWORD`, and `DB_NAME` identical in both files. Docker
+automatically overrides the backend container's host to `db` and its internal
+database port to `5432`.
+
+Environment files are ignored by Git. Do not commit real credentials.
+
+## Quick start
+
+Run these commands from the repository root.
+
+### 1. Start PostgreSQL and the backend
+
+```bash
+docker compose up -d --build
+```
+
+The backend container waits for PostgreSQL, applies Alembic migrations, and
+starts FastAPI with automatic reload.
+
+Check that the API is running:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+Interactive API documentation is available at
+[http://localhost:8000/docs](http://localhost:8000/docs).
+
+### 2. Ingest the initial FPL data
+
+```bash
+docker compose exec backend python -m app.ingest.initial_ingestion
+```
+
+The ingestion runs in one transaction and creates or updates:
+
+- The 2026/27 season
+- Positions and teams
+- Players and player season statistics
+- Gameweeks, phases, and chips
+- Game rules and scoring rules
+
+The pipeline is idempotent: running it again updates existing records instead
+of inserting duplicates.
+
+### 3. Start the frontend
+
+The frontend currently runs outside Docker:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL printed by Vite, normally
+[http://localhost:5173](http://localhost:5173).
+
+## Accessing PostgreSQL
+
+From the repository root, open a PostgreSQL shell inside the database
+container:
+
+```bash
+docker compose exec db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Useful `psql` commands:
+
+```sql
+\dt
+\d players
+SELECT * FROM seasons;
+SELECT COUNT(*) FROM players;
+SELECT * FROM teams ORDER BY id LIMIT 10;
+\q
+```
+
+Use `\q` to leave `psql`. Press `Ctrl+C` first if a query is currently running.
+
+For a graphical client such as DBeaver, TablePlus, or pgAdmin, use:
+
+| Setting | Value |
+|---|---|
+| Host | `localhost` |
+| Port | `DB_PORT` from `/.env` |
+| Database | `DB_NAME` from `/.env` |
+| Username | `DB_USER` from `/.env` |
+| Password | `DB_PASSWORD` from `/.env` |
+
+To display the mapped database port:
+
+```bash
+docker compose port db 5432
+```
+
+## API overview
+
+All resource routes use the `/api/v1` prefix.
+
+| Resource | Endpoint |
+|---|---|
+| Seasons | `/api/v1/seasons` |
+| Teams | `/api/v1/teams?season_id=1` |
+| Positions | `/api/v1/positions` |
+| Players | `/api/v1/players?season_id=1` |
+| Player season stats | `/api/v1/player-season-stats?season_id=1` |
+| Gameweeks | `/api/v1/gameweeks?season_id=1` |
+| Phases | `/api/v1/phases?season_id=1` |
+| Chips | `/api/v1/chips?season_id=1` |
+| Game rules | `/api/v1/game-rules/by-season/1` |
+| Scoring rules | `/api/v1/scoring-rules?season_id=1` |
+
+Example:
+
+```bash
+curl 'http://localhost:8000/api/v1/players?season_id=1&limit=20'
+```
+
+## Running the backend without Docker
+
+Start only PostgreSQL from the repository root:
+
+```bash
+docker compose up -d db
+```
+
+Then run the backend from `backend/`:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m alembic upgrade head
+python -m app.ingest.initial_ingestion
+uvicorn main:app --reload
+```
+
+Ensure `backend/.env` uses `DB_HOST=localhost` and the host port configured in
+the root `.env` file.
+
+## Common commands
+
+Run Docker commands from the repository root:
+
+```bash
+docker compose ps
+docker compose logs -f backend
+docker compose restart backend
+docker compose down
+```
+
+Run frontend checks from `frontend/`:
+
+```bash
+npm run lint
+npm run build
+```
+
+Run backend tests from `backend/`:
+
+```bash
+python -m pytest
+```
+
+## Database migrations
+
+The Docker backend applies existing migrations automatically at startup.
+
+To create a migration after changing the SQLAlchemy schema, run from
+`backend/`:
+
+```bash
+python -m alembic revision --autogenerate -m "describe the schema change"
+python -m alembic upgrade head
+```
+
+Inside Docker, use:
+
+```bash
+docker compose exec backend python -m alembic upgrade head
+```
+
+## Resetting local data
+
+To stop the application while preserving PostgreSQL data:
+
+```bash
+docker compose down
+```
+
+To delete the PostgreSQL volume and start with an empty database:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+docker compose exec backend python -m app.ingest.initial_ingestion
+```
+
+`docker compose down -v` permanently removes the local database volume. Use it
+only when you intend to discard all local data.
