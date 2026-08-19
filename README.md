@@ -220,17 +220,53 @@ docker compose restart backend
 docker compose down
 ```
 
-Run frontend checks from `frontend/`:
+## Testing
+
+The backend suite uses a fresh in-memory SQLite database for each test. It does
+not require Docker and never modifies the development PostgreSQL database.
+
+Run the backend tests from `backend/`:
+
+```bash
+cd backend
+python -m pytest
+```
+
+Coverage is enabled by default. The suite fails if combined line and branch
+coverage falls below 95%.
+
+The backend tests cover:
+
+- Request validation and response serialization
+- Service CRUD, ordering, searching, filtering, and pagination
+- Every FastAPI route, including validation and not-found responses
+- Database constraints and session commit/rollback behavior
+- Full bootstrap ingestion, reruns, foreign-key mapping, and failure cases
+- Initial Alembic migration upgrade and downgrade behavior
+- The executable initial-ingestion entry point
+
+Run backend tests inside Docker with:
+
+```bash
+docker compose exec backend python -m pytest
+```
+
+Run frontend component tests from `frontend/`:
+
+```bash
+cd frontend
+npm test
+npm run test:coverage
+```
+
+The frontend suite uses Vitest, Testing Library, and jsdom. Coverage thresholds
+are configured in `frontend/vitest.config.ts`.
+
+Run frontend lint and production build checks from `frontend/`:
 
 ```bash
 npm run lint
 npm run build
-```
-
-Run backend tests from `backend/`:
-
-```bash
-python -m pytest
 ```
 
 ## Database migrations
