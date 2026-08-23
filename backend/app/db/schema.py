@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime, UniqueConstraint
@@ -14,6 +14,43 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     pass
+
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("username_normalized"),
+        UniqueConstraint("email_normalized"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    username: Mapped[str] = mapped_column(String(50), nullable=False)
+    username_normalized: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    email_normalized: Mapped[str] = mapped_column(
+        String(320),
+        nullable=False,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
 
 
 class Season(Base):
