@@ -2,7 +2,9 @@ export function navigate(path: string) {
   window.history.pushState({}, '', path)
   window.dispatchEvent(new PopStateEvent('popstate'))
 
-  if (!navigator.userAgent.includes('jsdom')) {
+  try {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch {
+    window.scrollTo(0, 0)
   }
 }

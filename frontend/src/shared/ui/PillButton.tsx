@@ -11,6 +11,6 @@ type PillButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: keyof typeof variants
 }
 
-export function PillButton({ children, className = '', variant = 'acid', ...props }: PillButtonProps) {
-  return <button className={`inline-flex min-h-12 items-center justify-center gap-4 rounded-full border border-transparent px-[23px] text-xs font-extrabold transition duration-200 hover:-translate-y-0.5 ${variants[variant]} ${className}`} {...props}>{children}</button>
+export function PillButton({ children, className = '', variant = 'acid', type = 'button', ...props }: PillButtonProps) {
+  return <button type={type} className={`inline-flex min-h-12 items-center justify-center gap-4 rounded-full border border-transparent px-[23px] text-xs font-extrabold transition duration-200 hover:-translate-y-0.5 ${variants[variant]} ${className}`} {...props}>{children}</button>
 }

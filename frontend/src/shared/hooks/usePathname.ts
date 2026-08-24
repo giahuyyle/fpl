@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 export function usePathname() {
-  const [pathname, setPathname] = useState(window.location.pathname)
+  const [pathname, setPathname] = useState(() => (typeof window === 'undefined' ? '/' : window.location.pathname))
 
   useEffect(() => {
     const updatePathname = () => setPathname(window.location.pathname)
