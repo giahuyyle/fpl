@@ -71,10 +71,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    # The named volume survives image rebuilds, so refresh it from the lockfile
-    # before starting Vite whenever frontend dependencies change.
-    command: >
-      sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    command: sh ./scripts/start-dev.sh
 
 volumes:
   postgres_data:
