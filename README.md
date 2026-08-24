@@ -71,14 +71,16 @@ Environment files are ignored by Git. Do not commit real credentials.
 
 Run these commands from the repository root.
 
-### 1. Start PostgreSQL and the backend
+### 1. Start the application
 
 ```bash
 docker compose up -d --build
 ```
 
-The backend container waits for PostgreSQL, applies Alembic migrations, and
-starts FastAPI with automatic reload.
+This starts PostgreSQL, the FastAPI backend, and the Vite frontend. The backend
+waits for PostgreSQL, applies Alembic migrations, and starts with automatic
+reload. The frontend starts after the backend health check passes and supports
+hot module replacement.
 
 Check that the API is running:
 
@@ -94,6 +96,10 @@ Expected response:
 
 Interactive API documentation is available at
 [http://localhost:8000/docs](http://localhost:8000/docs).
+
+The frontend is available at
+[http://localhost:5173](http://localhost:5173). Requests under `/api` are
+proxied from Vite to the backend container.
 
 ### 2. Ingest the initial FPL data
 
@@ -112,11 +118,13 @@ The ingestion runs in one transaction and creates or updates:
 The pipeline is idempotent: running it again updates existing records instead
 of inserting duplicates.
 
-### 3. Start the frontend
+### 3. Optional: run the frontend outside Docker
 
-The frontend currently runs outside Docker:
+If you prefer to run the frontend directly on your machine, stop its container
+and start Vite locally:
 
 ```bash
+docker compose stop frontend
 cd frontend
 npm install
 npm run dev
