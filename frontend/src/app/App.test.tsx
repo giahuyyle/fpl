@@ -24,4 +24,18 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Show password' }))
     expect(password).toHaveAttribute('type', 'text')
   })
+
+  it('navigates from login to account creation', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/login')
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Create an account' }))
+
+    expect(screen.getByRole('heading', { level: 1, name: /Build your first squad/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('Full name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Email address')).toHaveAttribute('autocomplete', 'email')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('autocomplete', 'new-password')
+    expect(screen.getByLabelText('Confirm password')).toBeInTheDocument()
+  })
 })
