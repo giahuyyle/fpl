@@ -14,6 +14,7 @@ from app.db.schema import (
     ScoringRule,
     Season,
     Team,
+    User,
 )
 
 
@@ -59,6 +60,19 @@ def make_season(session: Session, **overrides) -> Season:
         "is_current": True,
     }
     return create_row(session, Season, **(defaults | overrides))
+
+
+def make_user(session: Session, **overrides) -> User:
+    defaults = {
+        "username": "alex",
+        "username_normalized": "alex",
+        "email": "alex@example.com",
+        "email_normalized": "alex@example.com",
+        "password_hash": "$argon2id$placeholder",
+        "is_active": True,
+        "email_verified_at": None,
+    }
+    return create_row(session, User, **(defaults | overrides))
 
 
 def make_position(session: Session, **overrides) -> Position:

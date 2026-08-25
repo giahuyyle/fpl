@@ -61,6 +61,10 @@ def test_health_and_openapi_include_all_routes(client: TestClient) -> None:
         "/api/v1/chips",
         "/api/v1/game-rules",
         "/api/v1/scoring-rules",
+        "/api/v1/users/me",
+        "/auth/v1/register",
+        "/auth/v1/login",
+        "/auth/v1/logout",
     }
     assert expected <= paths
 

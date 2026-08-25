@@ -13,6 +13,14 @@ from app.models.scoring_rule import (
 from app.models.season import SeasonCreate, SeasonResponse, SeasonUpdate
 from app.models.team import TeamResponse
 
+from app.models.user import (
+    LoginRequest,
+    PasswordChange,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
+
 __all__ = [
     "ChipResponse",
     "GameRuleCreate",
@@ -30,4 +38,9 @@ __all__ = [
     "SeasonResponse",
     "SeasonUpdate",
     "TeamResponse",
+    "LoginRequest",
+    "PasswordChange",
+    "UserCreate",
+    "UserResponse",
+    "UserUpdate",
 ]

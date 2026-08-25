@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { navigate } from '../../shared/lib/navigation'
 import { Icon } from '../../shared/ui/Icon'
+import { createUser } from './api/createUser'
 import { fieldClass, inputClass, labelClass, primaryButtonClass } from './authStyles'
 import { AuthShell } from './components/AuthShell'
 import { SocialLogin } from './components/SocialLogin'
@@ -10,8 +11,9 @@ export function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [hasError, setHasError] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
 
@@ -22,7 +24,22 @@ export function SignUpPage() {
     }
 
     setHasError(false)
-    setMessage('Account creation will be available when the API is connected.')
+    setMessage('')
+    setIsSubmitting(true)
+
+    try {
+      await createUser({
+        username: String(form.get('username')).trim(),
+        email: String(form.get('email')).trim(),
+        password: String(form.get('password')),
+      })
+      navigate('/account')
+    } catch (error) {
+      setHasError(true)
+      setMessage(error instanceof Error ? error.message : 'Unable to create your account. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return <AuthShell tall kicker="YOUR SEASON STARTS HERE" quote="Every gameweek starts with a team you believe in." tagline="Create your account. Make every match matter.">
@@ -32,8 +49,8 @@ export function SignUpPage() {
       <p className="mb-7 max-w-[410px] text-sm leading-[1.55] text-muted">Create an account to pick your team, join private leagues and follow every point live.</p>
 
       <form onSubmit={submit}>
-        <label className={labelClass} htmlFor="name">Full name</label>
-        <div className={fieldClass}><Icon name="user" size={19} /><input className={inputClass} id="name" name="name" type="text" placeholder="Your full name" autoComplete="name" required /></div>
+        <label className={labelClass} htmlFor="username">Username</label>
+        <div className={fieldClass}><Icon name="user" size={19} /><input className={inputClass} id="username" name="username" type="text" placeholder="Choose a username" autoComplete="username" required /></div>
 
         <label className={`${labelClass} mt-[18px]`} htmlFor="signup-email">Email address</label>
         <div className={fieldClass}><Icon name="mail" size={19} /><input className={inputClass} id="signup-email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required /></div>
@@ -46,7 +63,7 @@ export function SignUpPage() {
         <div className={fieldClass}><Icon name="lock" size={19} /><input className={inputClass} id="confirm-password" name="confirmPassword" type={showPassword ? 'text' : 'password'} placeholder="Repeat your password" autoComplete="new-password" minLength={8} required /></div>
 
         <label className="my-[15px] flex items-start gap-2 text-[11px] leading-[1.45] text-[#716772]"><input className="mt-0.5 size-[15px] shrink-0 accent-pl-purple" type="checkbox" required /><span>I agree to the <a className="font-bold text-pl-purple" href="#terms">Terms</a> and <a className="font-bold text-pl-purple" href="#privacy">Privacy Policy</a>.</span></label>
-        <button className={primaryButtonClass} type="submit">Create my account <Icon name="arrow" size={18} /></button>
+        <button className={primaryButtonClass} type="submit" disabled={isSubmitting}>{isSubmitting ? 'Creating account…' : 'Create my account'} {!isSubmitting && <Icon name="arrow" size={18} />}</button>
         {message && <p className={`mt-2.5 text-center text-[11px] ${hasError ? 'text-pl-pink' : 'text-pl-purple'}`} role="status">{message}</p>}
       </form>
 

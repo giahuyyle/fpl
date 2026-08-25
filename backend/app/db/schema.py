@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime, Index, UniqueConstraint
 
 from app.core.config import config
 
@@ -37,6 +37,8 @@ class User(Base):
         nullable=False,
     )
 
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -50,6 +52,41 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+    )
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+
+class AuthLoginFailure(Base):
+    __tablename__ = "auth_login_failures"
+    __table_args__ = (
+        Index("ix_auth_login_failures_identity_time", "identity_key", "attempted_at"),
+        Index("ix_auth_login_failures_ip_time", "ip_key", "attempted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    ip_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 

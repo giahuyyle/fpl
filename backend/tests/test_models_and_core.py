@@ -44,6 +44,17 @@ def test_config_builds_postgresql_url() -> None:
     )
 
 
+def test_config_rejects_insecure_production_auth_settings() -> None:
+    with pytest.raises(ValidationError, match="AUTH_SECRET"):
+        Config(debug=False, auth_cookie_secure=True)
+    with pytest.raises(ValidationError, match="AUTH_COOKIE_SECURE"):
+        Config(
+            debug=False,
+            auth_secret="production-secret",
+            auth_cookie_secure=False,
+        )
+
+
 def test_setup_logging_uses_expected_configuration(monkeypatch) -> None:
     basic_config = Mock()
     monkeypatch.setattr("app.core.logging.logging.basicConfig", basic_config)
