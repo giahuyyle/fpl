@@ -18,8 +18,8 @@ describe('App', () => {
   it('navigates to login and toggles password visibility', async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getAllByRole('button', { name: 'Log in' })[0])
-    expect(screen.getByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
+    await user.click((await screen.findAllByRole('button', { name: 'Log in' }))[0])
+    expect(await screen.findByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAttribute('type', 'password')
     await user.click(screen.getByRole('button', { name: 'Show password' }))
@@ -31,9 +31,9 @@ describe('App', () => {
     window.history.replaceState({}, '', '/login')
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: 'Create an account' }))
+    await user.click(await screen.findByRole('button', { name: 'Create an account' }))
 
-    expect(screen.getByRole('heading', { level: 1, name: /Build your first squad/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Build your first squad/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Username')).toHaveAttribute('autocomplete', 'username')
     expect(screen.getByLabelText('Email address')).toHaveAttribute('autocomplete', 'email')
     expect(screen.getByLabelText('Password')).toHaveAttribute('autocomplete', 'new-password')
@@ -42,23 +42,23 @@ describe('App', () => {
 
   it('creates a user and opens the authenticated account', async () => {
     const user = userEvent.setup()
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({
-        id: 1,
-        username: 'alex',
-        email: 'alex@example.com',
-        is_active: true,
-        email_verified_at: null,
-        created_at: '2026-08-25T00:00:00Z',
-      }),
-    })
+    const account = {
+      id: 1,
+      username: 'alex',
+      email: 'alex@example.com',
+      is_active: true,
+      email_verified_at: null,
+      created_at: '2026-08-25T00:00:00Z',
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: true, status: 201 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => account })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', '/signup')
     render(<App />)
 
-    await user.type(screen.getByLabelText('Username'), 'alex')
+    await user.type(await screen.findByLabelText('Username'), 'alex')
     await user.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await user.type(screen.getByLabelText('Password'), 'matchday1')
     await user.type(screen.getByLabelText('Confirm password'), 'matchday1')
@@ -85,24 +85,25 @@ describe('App', () => {
       created_at: '2026-08-25T00:00:00Z',
     }
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401 })
       .mockResolvedValueOnce({ ok: true, status: 204 })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => account })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', '/login')
     render(<App />)
 
-    await user.type(screen.getByLabelText('Email address'), account.email)
+    await user.type(await screen.findByLabelText('Email address'), account.email)
     await user.type(screen.getByLabelText('Password'), 'matchday1')
     await user.click(screen.getByRole('checkbox', { name: 'Keep me logged in' }))
     await user.click(screen.getByRole('button', { name: /Log in to Fantasy PL/i }))
 
-    await waitFor(() => expect(fetchMock).toHaveBeenNthCalledWith(1, '/auth/v1/login', expect.objectContaining({
+    await waitFor(() => expect(fetchMock).toHaveBeenNthCalledWith(2, '/auth/v1/login', expect.objectContaining({
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ email: account.email, password: 'matchday1', remember_me: true }),
     })))
     expect(await screen.findByRole('heading', { name: 'Welcome, alex' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/v1/users/me', { credentials: 'include' })
+    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/v1/users/me', { credentials: 'include' })
   })
 
   it('keeps the email and shows a login error', async () => {
@@ -115,7 +116,7 @@ describe('App', () => {
     window.history.replaceState({}, '', '/login')
     render(<App />)
 
-    const email = screen.getByLabelText('Email address')
+    const email = await screen.findByLabelText('Email address')
     await user.type(email, 'alex@example.com')
     await user.type(screen.getByLabelText('Password'), 'incorrect')
     await user.click(screen.getByRole('button', { name: /Log in to Fantasy PL/i }))
@@ -153,9 +154,56 @@ describe('App', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Log out' }))
     expect(await screen.findByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenLastCalledWith('/auth/v1/logout', {
+    expect(fetchMock).toHaveBeenCalledWith('/auth/v1/logout', {
       method: 'POST',
       credentials: 'include',
     })
+  })
+
+  it('keeps authenticated controls after navigating home with the logo', async () => {
+    const user = userEvent.setup()
+    const account = {
+      id: 1,
+      username: 'alex',
+      email: 'alex@example.com',
+      is_active: true,
+      email_verified_at: null,
+      created_at: '2026-08-25T00:00:00Z',
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => account })
+    vi.stubGlobal('fetch', fetchMock)
+    window.history.replaceState({}, '', '/account')
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Welcome, alex' })
+    await user.click(screen.getByRole('button', { name: 'Fantasy PL home' }))
+
+    expect(await screen.findAllByRole('button', { name: /My account/i })).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/auth/v1/logout', expect.anything())
+  })
+
+  it.each(['/login', '/signup'])('redirects an authenticated user away from %s', async (path) => {
+    const account = {
+      id: 1,
+      username: 'alex',
+      email: 'alex@example.com',
+      is_active: true,
+      email_verified_at: null,
+      created_at: '2026-08-25T00:00:00Z',
+    }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => account,
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    window.history.replaceState({}, '', path)
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Welcome, alex' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/account')
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me', { credentials: 'include' })
   })
 })
