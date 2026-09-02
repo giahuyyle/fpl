@@ -10,6 +10,7 @@ from app.api.v1.player_season_stats import router as player_season_stats_router
 from app.api.v1.position import router as position_router
 from app.api.v1.scoring_rule import router as scoring_rule_router
 from app.api.v1.season import router as season_router
+from app.api.v1.squad import router as squad_router
 from app.api.v1.team import router as team_router
 from app.api.v1.user import router as user_router
 
@@ -27,3 +28,4 @@ api_router.include_router(chip_router)
 api_router.include_router(game_rule_router)
 api_router.include_router(scoring_rule_router)
 api_router.include_router(user_router)
+api_router.include_router(squad_router)

@@ -17,6 +17,7 @@ from app.models.scoring_rule import (
     ScoringRuleUpdate,
 )
 from app.models.season import SeasonCreate, SeasonResponse, SeasonUpdate
+from app.models.squad import SquadResponse, SquadUpsert
 from app.models.team import TeamResponse
 
 from app.models.user import (
@@ -47,6 +48,8 @@ __all__ = [
     "SeasonCreate",
     "SeasonResponse",
     "SeasonUpdate",
+    "SquadResponse",
+    "SquadUpsert",
     "TeamResponse",
     "LoginRequest",
     "PasswordChange",

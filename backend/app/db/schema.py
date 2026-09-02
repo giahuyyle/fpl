@@ -3,7 +3,17 @@ from datetime import date, datetime
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from sqlalchemy import ForeignKey, String, Boolean, Date, Float, DateTime, Index, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+)
 
 from app.core.config import config
 
@@ -88,6 +98,56 @@ class AuthLoginFailure(Base):
     attempted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class Squad(Base):
+    __tablename__ = "squads"
+    __table_args__ = (UniqueConstraint("user_id", "season_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class SquadPick(Base):
+    __tablename__ = "squad_picks"
+    __table_args__ = (
+        UniqueConstraint("squad_id", "player_id"),
+        UniqueConstraint("squad_id", "slot"),
+        UniqueConstraint("squad_id", "lineup_position"),
+        CheckConstraint("slot >= 1 AND slot <= 15", name="ck_squad_pick_slot"),
+        CheckConstraint(
+            "lineup_position IS NULL OR (lineup_position >= 1 AND lineup_position <= 15)",
+            name="ck_squad_pick_lineup_position",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    squad_id: Mapped[int] = mapped_column(
+        ForeignKey("squads.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    player_id: Mapped[int] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slot: Mapped[int] = mapped_column(nullable=False)
+    lineup_position: Mapped[int | None] = mapped_column()
+    purchase_price: Mapped[int] = mapped_column(nullable=False)
+    is_captain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_vice_captain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class Season(Base):

@@ -9,6 +9,7 @@ from app.services.player_search_service import PlayerSearchService
 from app.services.position_service import PositionService
 from app.services.scoring_rule_service import ScoringRuleService
 from app.services.season_service import SeasonService
+from app.services.squad_service import SquadService
 from app.services.team_service import TeamService
 from app.services.user_service import UserService
 
@@ -24,6 +25,7 @@ __all__ = [
     "PositionService",
     "ScoringRuleService",
     "SeasonService",
+    "SquadService",
     "TeamService",
     "UserService",
 ]
