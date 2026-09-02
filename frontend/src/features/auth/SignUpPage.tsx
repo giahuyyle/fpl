@@ -33,7 +33,7 @@ export function SignUpPage() {
         email: String(form.get('email')).trim(),
         password: String(form.get('password')),
       })
-      navigate('/account')
+      navigate('/squad')
     } catch (error) {
       setHasError(true)
       setMessage(error instanceof Error ? error.message : 'Unable to create your account. Please try again.')

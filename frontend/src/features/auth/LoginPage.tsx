@@ -26,7 +26,7 @@ export function LoginPage() {
         password: String(form.get('password')),
         remember_me: form.get('rememberMe') === 'on',
       })
-      navigate('/account')
+      navigate('/squad')
     } catch (error) {
       setHasError(true)
       setMessage(error instanceof Error ? error.message : 'Unable to log in. Please try again.')

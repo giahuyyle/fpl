@@ -3,13 +3,35 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  })
+}
+
+function squadDataResponse(input: RequestInfo | URL) {
+  const url = String(input)
+  if (url === '/api/v1/users/me') return jsonResponse({ id: 1, username: 'alex', email: 'alex@example.com', is_active: true, email_verified_at: null, created_at: '2026-08-25T00:00:00Z' })
+  if (url === '/api/v1/seasons/current') return jsonResponse({ id: 1, name: '2026/27' })
+  if (url.startsWith('/api/v1/teams')) return jsonResponse([])
+  if (url === '/api/v1/positions') return jsonResponse([])
+  if (url.startsWith('/api/v1/gameweeks')) return jsonResponse([])
+  if (url.startsWith('/api/v1/chips')) return jsonResponse([])
+  if (url.startsWith('/api/v1/squads/me')) return jsonResponse(null)
+  if (url === '/api/v1/players/search') return jsonResponse({ total: 0, items: [] })
+  return null
+}
+
 describe('App', () => {
   beforeEach(() => window.history.replaceState({}, '', '/'))
   afterEach(() => vi.unstubAllGlobals())
 
-  it('renders the fantasy football landing page', () => {
+  it('renders the fantasy football landing page for a signed-out user', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1, name: /Make football yours/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Make football yours/i })).toBeInTheDocument()
     expect(screen.getAllByText('Live points')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'See the whole pitch.' })).toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()
@@ -17,6 +39,7 @@ describe('App', () => {
 
   it('navigates to login and toggles password visibility', async () => {
     const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
     render(<App />)
     await user.click((await screen.findAllByRole('button', { name: 'Log in' }))[0])
     expect(await screen.findByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
@@ -40,7 +63,7 @@ describe('App', () => {
     expect(screen.getByLabelText('Confirm password')).toBeInTheDocument()
   })
 
-  it('creates a user and opens the authenticated account', async () => {
+  it('creates a user and opens squad selection', async () => {
     const user = userEvent.setup()
     const account = {
       id: 1,
@@ -50,10 +73,16 @@ describe('App', () => {
       email_verified_at: null,
       created_at: '2026-08-25T00:00:00Z',
     }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 401 })
-      .mockResolvedValueOnce({ ok: true, status: 201 })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => account })
+    let checkedSession = false
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/users/me' && !checkedSession) {
+        checkedSession = true
+        return jsonResponse(null, 401)
+      }
+      if (url === '/auth/v1/register') return jsonResponse(null, 201)
+      return squadDataResponse(input) ?? jsonResponse(account)
+    })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', '/signup')
     render(<App />)
@@ -70,11 +99,11 @@ describe('App', () => {
       credentials: 'include',
       body: JSON.stringify({ username: 'alex', email: 'alex@example.com', password: 'matchday1' }),
     })))
-    expect(await screen.findByRole('heading', { name: 'Welcome, alex' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me', { credentials: 'include' })
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
   })
 
-  it('logs in with remember me and loads the protected account', async () => {
+  it('logs in with remember me and loads squad selection', async () => {
     const user = userEvent.setup()
     const account = {
       id: 1,
@@ -84,10 +113,16 @@ describe('App', () => {
       email_verified_at: null,
       created_at: '2026-08-25T00:00:00Z',
     }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 401 })
-      .mockResolvedValueOnce({ ok: true, status: 204 })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => account })
+    let checkedSession = false
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/users/me' && !checkedSession) {
+        checkedSession = true
+        return jsonResponse(null, 401)
+      }
+      if (url === '/auth/v1/login') return jsonResponse(null, 204)
+      return squadDataResponse(input) ?? jsonResponse(account)
+    })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', '/login')
     render(<App />)
@@ -102,8 +137,8 @@ describe('App', () => {
       credentials: 'include',
       body: JSON.stringify({ email: account.email, password: 'matchday1', remember_me: true }),
     })))
-    expect(await screen.findByRole('heading', { name: 'Welcome, alex' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/v1/users/me', { credentials: 'include' })
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
   })
 
   it('keeps the email and shows a login error', async () => {
@@ -130,6 +165,24 @@ describe('App', () => {
     window.history.replaceState({}, '', '/account')
     render(<App />)
     expect(await screen.findByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
+  })
+
+  it('loads the transfers route directly', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => squadDataResponse(input) ?? jsonResponse(null, 404)))
+    window.history.replaceState({}, '', '/squad/transfers')
+    render(<App />)
+
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
+  })
+
+  it('redirects an incomplete squad away from pick team', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => squadDataResponse(input) ?? jsonResponse(null, 404)))
+    window.history.replaceState({}, '', '/squad/pick')
+    render(<App />)
+
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
   })
 
   it('loads the account and logs out', async () => {
@@ -160,7 +213,7 @@ describe('App', () => {
     })
   })
 
-  it('keeps authenticated controls after navigating home with the logo', async () => {
+  it('redirects an authenticated user from home to their squad', async () => {
     const user = userEvent.setup()
     const account = {
       id: 1,
@@ -170,8 +223,10 @@ describe('App', () => {
       email_verified_at: null,
       created_at: '2026-08-25T00:00:00Z',
     }
-    const fetchMock = vi.fn()
-      .mockResolvedValue({ ok: true, status: 200, json: async () => account })
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/v1/users/me') return jsonResponse(account)
+      return squadDataResponse(input) ?? jsonResponse(null, 404)
+    })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', '/account')
     render(<App />)
@@ -179,8 +234,9 @@ describe('App', () => {
     await screen.findByRole('heading', { name: 'Welcome, alex' })
     await user.click(screen.getByRole('button', { name: 'Fantasy PL home' }))
 
-    expect(await screen.findAllByRole('button', { name: /My account/i })).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
+    expect(screen.queryByRole('heading', { name: /Make football yours/i })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/auth/v1/logout', expect.anything())
   })
 
@@ -193,17 +249,16 @@ describe('App', () => {
       email_verified_at: null,
       created_at: '2026-08-25T00:00:00Z',
     }
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => account,
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/v1/users/me') return jsonResponse(account)
+      return squadDataResponse(input) ?? jsonResponse(null, 404)
     })
     vi.stubGlobal('fetch', fetchMock)
     window.history.replaceState({}, '', path)
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, alex' })).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/account')
+    expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/squad/transfers')
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me', { credentials: 'include' })
   })
 })

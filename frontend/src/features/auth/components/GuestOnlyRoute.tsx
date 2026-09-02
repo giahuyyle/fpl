@@ -12,7 +12,7 @@ export function GuestOnlyRoute({ children }: { children: ReactNode }) {
     let active = true
     getCurrentUser()
       .then(() => {
-        if (active) navigate('/account')
+        if (active) navigate('/squad')
       })
       .catch(() => {
         if (active) setCanContinue(true)
