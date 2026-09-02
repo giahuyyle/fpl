@@ -5,6 +5,7 @@ from app.api.v1.game_rule import router as game_rule_router
 from app.api.v1.gameweek import router as gameweek_router
 from app.api.v1.phase import router as phase_router
 from app.api.v1.player import router as player_router
+from app.api.v1.player_search import router as player_search_router
 from app.api.v1.player_season_stats import router as player_season_stats_router
 from app.api.v1.position import router as position_router
 from app.api.v1.scoring_rule import router as scoring_rule_router
@@ -18,6 +19,7 @@ api_router.include_router(season_router)
 api_router.include_router(team_router)
 api_router.include_router(position_router)
 api_router.include_router(player_router)
+api_router.include_router(player_search_router)
 api_router.include_router(player_season_stats_router)
 api_router.include_router(gameweek_router)
 api_router.include_router(phase_router)

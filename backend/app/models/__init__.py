@@ -3,6 +3,12 @@ from app.models.game_rule import GameRuleCreate, GameRuleResponse, GameRuleUpdat
 from app.models.gameweek import GameweekResponse
 from app.models.phase import PhaseResponse
 from app.models.player import PlayerResponse
+from app.models.player_search import (
+    PlayerSearchItem,
+    PlayerSearchRequest,
+    PlayerSearchResponse,
+    PlayerStatFilter,
+)
 from app.models.player_season_stats import PlayerSeasonStatsResponse
 from app.models.position import PositionResponse
 from app.models.scoring_rule import (
@@ -29,6 +35,10 @@ __all__ = [
     "GameweekResponse",
     "PhaseResponse",
     "PlayerResponse",
+    "PlayerSearchItem",
+    "PlayerSearchRequest",
+    "PlayerSearchResponse",
+    "PlayerStatFilter",
     "PlayerSeasonStatsResponse",
     "PositionResponse",
     "ScoringRuleCreate",
