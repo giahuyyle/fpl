@@ -561,7 +561,7 @@ def ingest_scoring_rules(
     return ingested_rules
 
 
-def ingest_initial_data(
+def ingest_bootstrap_data(
     session: Session,
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:

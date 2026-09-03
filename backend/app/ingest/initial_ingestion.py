@@ -1,7 +1,7 @@
 import logging
 
 from app.db.schema import SessionLocal
-from app.ingest.ingest import ingest_initial_data
+from app.ingest.ingest import ingest_bootstrap_data
 
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ def run_initial_ingestion() -> dict[str, int]:
     exception automatically rolls back all changes.
     """
     with SessionLocal.begin() as session:
-        ingested = ingest_initial_data(session)
+        ingested = ingest_bootstrap_data(session)
         counts = {
             name: len(records) if isinstance(records, list) else 1
             for name, records in ingested.items()
