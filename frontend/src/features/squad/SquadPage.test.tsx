@@ -183,6 +183,9 @@ describe('SquadPage', () => {
     const pickedPlayer = screen.getByRole('button', { name: 'Open actions for Player 01' })
     expect(within(pickedPlayer).getByRole('img', { name: 'Club One crest' })).toBeInTheDocument()
     expect(within(pickedPlayer).getByText('Club One')).toBeInTheDocument()
+    const pickedKit = pickedPlayer.querySelector('img[src="/kits/2026-27/shirt_10_1-220.webp"]')!
+    expect(pickedKit).toBeInTheDocument()
+    fireEvent.error(pickedKit)
     expect(within(pickedPlayer).getByRole('img', { name: 'Generic player portrait' })).toBeInTheDocument()
     await user.click(pickedPlayer)
     expect(screen.getByRole('dialog', { name: 'Player 01 actions' })).toBeInTheDocument()
@@ -359,7 +362,7 @@ describe('SquadPage', () => {
     expect(screen.getByRole('button', { name: 'Save draft · 1/15' })).toBeInTheDocument()
   })
 
-  it('uses the player-photo fallback and supports the final finished gameweek', async () => {
+  it('uses local kits with a generic fallback and supports the final finished gameweek', async () => {
     const withPhoto = { ...allPlayers[0], photo: '123.jpg' }
     const complete = squadFrom([withPhoto, ...allPlayers.slice(1)], true)
     const routed = fetchRouter(complete, [])
@@ -372,11 +375,11 @@ describe('SquadPage', () => {
     }))
     render(<SquadPage />)
     await screen.findByRole('region', { name: 'Saved starting squad' })
-    const photo = document.querySelector('img[src*="p123.png"]') as HTMLImageElement
-    expect(photo).not.toBeNull()
-    const portrait = photo.parentElement!
-    fireEvent.error(photo)
-    expect(photo).not.toBeInTheDocument()
+    const kit = document.querySelector('img[src="/kits/2026-27/shirt_10_1-220.webp"]') as HTMLImageElement
+    expect(kit).not.toBeNull()
+    const portrait = kit.parentElement!
+    fireEvent.error(kit)
+    expect(kit).not.toBeInTheDocument()
     expect(within(portrait).getByRole('img', { name: 'Generic player portrait' })).toBeInTheDocument()
     expect(screen.getByText('Gameweek 38')).toBeInTheDocument()
   })

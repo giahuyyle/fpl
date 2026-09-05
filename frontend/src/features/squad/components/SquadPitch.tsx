@@ -9,6 +9,7 @@ type PickMap = Record<number, Player | undefined>
 type Props = {
   picks: PickMap
   positions: Position[]
+  seasonName: string
   mode: SquadMode
   lineupOrder: number[]
   captainSlot: number | null
@@ -41,17 +42,18 @@ function roleFor(slot: number, captainSlot: number | null, viceCaptainSlot: numb
   return undefined
 }
 
-function PlayerCard({ captainSlot, clickable, compact = false, pending, player, slot, viceCaptainSlot, onClick }: {
+function PlayerCard({ captainSlot, clickable, compact = false, pending, player, seasonName, slot, viceCaptainSlot, onClick }: {
   captainSlot: number | null
   clickable: boolean
   compact?: boolean
   pending: boolean
   player: Player
+  seasonName: string
   slot: number
   viceCaptainSlot: number | null
   onClick: (slot: number) => void
 }) {
-  const token = <PlayerToken compact={compact} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} />
+  const token = <PlayerToken compact={compact} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} />
   if (!clickable) return token
   return <div className="relative mx-auto w-full max-w-[112px] min-w-0">
     {pending && <span className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-pl-pink px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] text-white shadow-md">Swap</span>}
@@ -59,7 +61,7 @@ function PlayerCard({ captainSlot, clickable, compact = false, pending, player, 
   </div>
 }
 
-export function SquadPitch({ picks, positions, mode, lineupOrder, captainSlot, viceCaptainSlot, selectedSlot, substituteFromSlot, onPlayerClick, onEmptySlot }: Props) {
+export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, captainSlot, viceCaptainSlot, selectedSlot, substituteFromSlot, onPlayerClick, onEmptySlot }: Props) {
   const sortedPositions = [...positions].sort(
     (a, b) => positionOrder.indexOf(a.code) - positionOrder.indexOf(b.code),
   )
@@ -78,7 +80,7 @@ export function SquadPitch({ picks, positions, mode, lineupOrder, captainSlot, v
           <p className="mb-2 text-center text-[9px] font-black uppercase tracking-[.16em] text-white/70">{position.name}s · {slots.length}</p>
           <div className={`mx-auto grid items-end justify-center gap-2 tablet:gap-3 ${slots.length === 2 ? 'max-w-[260px] grid-cols-2' : slots.length === 3 ? 'max-w-[390px] grid-cols-3' : 'max-w-[650px] grid-cols-5'}`}>
             {slots.map((slot) => picks[slot]
-              ? <PlayerCard captainSlot={captainSlot} clickable key={slot} onClick={onPlayerClick} pending={false} player={picks[slot]} slot={slot} viceCaptainSlot={viceCaptainSlot} />
+              ? <PlayerCard captainSlot={captainSlot} clickable key={slot} onClick={onPlayerClick} pending={false} player={picks[slot]} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />
               : <button aria-label={`Select empty ${position.code} slot ${slot}`} aria-pressed={selectedSlot === slot} className="min-w-0 rounded-xl border-0 bg-transparent p-0" key={slot} onClick={() => onEmptySlot(slot)} type="button"><EmptySlot code={position.code} selected={selectedSlot === slot} /></button>)}
           </div>
         </div>)}
@@ -96,14 +98,14 @@ export function SquadPitch({ picks, positions, mode, lineupOrder, captainSlot, v
       <PitchMarkings />
       <div className="relative z-10 flex min-h-[630px] flex-col justify-around tablet:min-h-[700px]">
         {positionOrder.map((code) => <div className="flex items-end justify-center gap-2 tablet:gap-5" key={code}>
-          {starters.filter(({ player }) => player.position.code === code).map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
+          {starters.filter(({ player }) => player.position.code === code).map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
         </div>)}
       </div>
     </div>
     <div className="border-t-4 border-pl-purple bg-[#d9f5e5] px-3 py-5 tablet:px-6">
       <p className="mb-4 text-center text-[9px] font-black uppercase tracking-[.18em] text-pl-purple">Substitutes</p>
       <div className="mx-auto grid max-w-[520px] grid-cols-4 items-end gap-2 tablet:gap-4">
-        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} compact key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
+        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} compact key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
       </div>
     </div>
   </section>

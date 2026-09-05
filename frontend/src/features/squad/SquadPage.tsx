@@ -434,7 +434,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
           <SquadRouteHeader budget={draftBudget} chipUpdating={chipUpdating} chips={chips} deadline={deadline} mode={mode} onChipChange={changeChip} pickCount={pickCount} squadName={squad?.name} squadValue={spent} />
-          <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
+          <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
           <FixturesPanel gameweeks={gameweeks} />
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">

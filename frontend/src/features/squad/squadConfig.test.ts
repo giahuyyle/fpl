@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Player, Squad } from './api/squadApi'
-import { remainingDraftBudget } from './squadConfig'
+import { kitImage, remainingDraftBudget, seasonAssetKey } from './squadConfig'
 
 function player(id: number, nowCost: number) {
   return { id, stats: { now_cost: nowCost } } as Player
@@ -24,5 +24,18 @@ describe('remainingDraftBudget', () => {
     expect(
       remainingDraftBudget({ 1: player(3, 53) }, squad, 1000),
     ).toBe(-1)
+  })
+})
+
+describe('local kit assets', () => {
+  it('normalizes season names into stable folder names', () => {
+    expect(seasonAssetKey(' 2026/27 ')).toBe('2026-27')
+    expect(seasonAssetKey('Premier League 2026/27!')).toBe('Premier-League-2026-27')
+  })
+
+  it('uses the goalkeeper variant only for goalkeepers', () => {
+    expect(kitImage('2026/27', 11, 'GKP')).toBe('/kits/2026-27/shirt_11_1-220.webp')
+    expect(kitImage('2026/27', 14, 'MID')).toBe('/kits/2026-27/shirt_14-220.webp')
+    expect(kitImage('', 14, 'MID')).toBeNull()
   })
 })

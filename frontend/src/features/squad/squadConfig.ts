@@ -89,3 +89,22 @@ export function playerPhoto(photo: string | null) {
   const code = photo.replace(/\.jpg$/i, '')
   return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png`
 }
+
+export function seasonAssetKey(seasonName: string) {
+  return seasonName
+    .trim()
+    .replace(/[/\\]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+}
+
+export function kitImage(
+  seasonName: string,
+  teamCode: number,
+  positionCode: Position['code'],
+) {
+  const season = seasonAssetKey(seasonName)
+  if (!season) return null
+  const goalkeeperSuffix = positionCode === 'GKP' ? '_1' : ''
+  return `/kits/${season}/shirt_${teamCode}${goalkeeperSuffix}-220.webp`
+}
