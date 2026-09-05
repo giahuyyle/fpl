@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -18,6 +17,7 @@ class SquadPickInput(RequestModel):
 
 class SquadUpsert(RequestModel):
     season_id: int
+    gameweek_number: int | None = Field(default=None, ge=1, le=38)
     picks: list[SquadPickInput] = Field(default_factory=list, max_length=15)
 
 

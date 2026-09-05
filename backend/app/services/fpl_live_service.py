@@ -166,8 +166,8 @@ class FPLLiveService:
         """Create deadline snapshots and the explicitly requested GW1/GW2 backfill.
 
         GW1 and GW2 use the current complete squad as a synthetic verification
-        snapshot. Later snapshots are only captured close to the real deadline,
-        so a worker restart cannot invent historical teams.
+        snapshot. A still-active gameweek may also be recovered after the normal
+        deadline window; completed historical weeks are never reconstructed.
         """
         now = datetime.now(timezone.utc)
         gameweeks = list(
@@ -186,9 +186,50 @@ class FPLLiveService:
             if deadline.tzinfo is None:
                 deadline = deadline.replace(tzinfo=timezone.utc)
             is_backfill = gameweek.number <= 2
-            if not is_backfill and now - deadline > timedelta(minutes=10):
+            if (
+                not is_backfill
+                and gameweek.finished
+                and now - deadline > timedelta(minutes=10)
+            ):
                 continue
             created += self._snapshot_complete_squads(gameweek, is_backfill)
+            self.score_gameweek(gameweek)
+        return created
+
+    def ensure_current_snapshot(self, user_id: int, season_id: int) -> int:
+        """Recover a missing snapshot for the gameweek currently in progress.
+
+        The deadline worker remains the normal snapshot path. This guard covers
+        restarts or database resets after the deadline and runs before the user
+        can save changes for the following gameweek.
+        """
+        gameweek = self._db.scalar(
+            select(Gameweek)
+            .where(
+                Gameweek.season_id == season_id,
+                Gameweek.deadline_time <= datetime.now(timezone.utc).replace(
+                    tzinfo=None
+                ),
+                Gameweek.finished.is_(False),
+            )
+            .order_by(Gameweek.number.desc())
+            .limit(1)
+        )
+        squad = self._db.scalar(
+            select(Squad).where(
+                Squad.user_id == user_id,
+                Squad.season_id == season_id,
+                Squad.is_complete.is_(True),
+            )
+        )
+        if gameweek is None or squad is None:
+            return 0
+        created = self._snapshot_complete_squads(
+            gameweek,
+            is_backfill=False,
+            squad_id=squad.id,
+        )
+        if created:
             self.score_gameweek(gameweek)
         return created
 
@@ -216,6 +257,7 @@ class FPLLiveService:
             )
         )
         chip_names = dict(self._db.execute(select(Chip.id, Chip.name)).all())
+        finalized = bool(gameweek.finished and gameweek.data_checked)
         for snapshot in snapshots:
             picks = list(
                 self._db.scalars(
@@ -230,21 +272,28 @@ class FPLLiveService:
                 stats_by_player,
                 positions,
                 chip_names.get(snapshot.active_chip_id),
+                finalized=finalized,
             )
-            snapshot.finalized = bool(gameweek.finished and gameweek.data_checked)
+            snapshot.finalized = finalized
         self._recalculate_totals_and_ranks(gameweek.season_id)
         self._db.flush()
         return len(snapshots)
 
     def _snapshot_complete_squads(
-        self, gameweek: Gameweek, is_backfill: bool
+        self,
+        gameweek: Gameweek,
+        is_backfill: bool,
+        squad_id: int | None = None,
     ) -> int:
+        squad_filters = [
+            Squad.season_id == gameweek.season_id,
+            Squad.is_complete.is_(True),
+        ]
+        if squad_id is not None:
+            squad_filters.append(Squad.id == squad_id)
         squads = list(
             self._db.scalars(
-                select(Squad).where(
-                    Squad.season_id == gameweek.season_id,
-                    Squad.is_complete.is_(True),
-                )
+                select(Squad).where(*squad_filters)
             )
         )
         existing_squad_ids = set(
@@ -387,6 +436,8 @@ class FPLLiveService:
         stats_by_player: dict[int, PlayerGameweekStats],
         positions: dict[int, tuple[str, int, int]],
         chip_name: str | None,
+        *,
+        finalized: bool = True,
     ) -> None:
         for pick in picks:
             stats = stats_by_player.get(pick.player_id)
@@ -397,7 +448,7 @@ class FPLLiveService:
         if chip_name == "bboost":
             for pick in picks:
                 pick.multiplier = 1
-        else:
+        elif finalized:
             starters = [pick for pick in picks if pick.lineup_position <= 11]
             bench = [pick for pick in picks if pick.lineup_position > 11]
             playing_ids = {
@@ -441,9 +492,18 @@ class FPLLiveService:
         captain = next((pick for pick in picks if pick.is_captain), None)
         vice = next((pick for pick in picks if pick.is_vice_captain), None)
         captain_multiplier = 3 if chip_name == "3xc" else 2
-        if captain and captain.multiplier > 0 and stats_by_player.get(captain.player_id, None) and stats_by_player[captain.player_id].played:
+        if captain and captain.multiplier > 0 and (
+            not finalized
+            or (
+                stats_by_player.get(captain.player_id, None)
+                and stats_by_player[captain.player_id].played
+            )
+        ):
             captain.multiplier = captain_multiplier
-        elif vice and vice.multiplier > 0 and stats_by_player.get(vice.player_id, None) and stats_by_player[vice.player_id].played:
+        elif vice and vice.multiplier > 0 and (
+            stats_by_player.get(vice.player_id, None)
+            and stats_by_player[vice.player_id].played
+        ):
             vice.multiplier = captain_multiplier
 
         for pick in picks:

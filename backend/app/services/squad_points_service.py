@@ -1,9 +1,17 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.schema import Gameweek, Squad, SquadGameweek, SquadGameweekPick
+from app.db.schema import (
+    Gameweek,
+    PlayerGameweekStats,
+    Squad,
+    SquadGameweek,
+    SquadGameweekPick,
+)
 from app.models.gameweek import GameweekResponse
 from app.models.squad_points import ScoredPickResponse, SquadPointsResponse
+from app.services.fpl_live_service import FPLLiveService
+from app.services.gameweek_deadline_service import utc_now_naive
 from app.services.player_search_service import PlayerSearchService
 
 
@@ -14,11 +22,21 @@ class SquadPointsService:
     def get_points(
         self, user_id: int, season_id: int, gameweek_number: int | None = None
     ) -> SquadPointsResponse | None:
+        FPLLiveService(self._db).ensure_current_snapshot(user_id, season_id)
+        return self._get_points(user_id, season_id, gameweek_number)
+
+    def _get_points(
+        self, user_id: int, season_id: int, gameweek_number: int | None = None
+    ) -> SquadPointsResponse | None:
+        visible_gameweek = or_(
+            Gameweek.finished.is_(True),
+            Gameweek.deadline_time <= utc_now_naive(),
+        )
         if gameweek_number is None:
             gameweek = self._db.scalar(
                 select(Gameweek)
-                .where(Gameweek.season_id == season_id)
-                .order_by(Gameweek.finished.asc(), Gameweek.number.desc())
+                .where(Gameweek.season_id == season_id, visible_gameweek)
+                .order_by(Gameweek.number.desc())
                 .limit(1)
             )
         else:
@@ -26,6 +44,7 @@ class SquadPointsService:
                 select(Gameweek).where(
                     Gameweek.season_id == season_id,
                     Gameweek.number == gameweek_number,
+                    visible_gameweek,
                 )
             )
         if gameweek is None:
@@ -56,6 +75,16 @@ class SquadPointsService:
         player_items = PlayerSearchService(self._db).get_items(
             season_id, [pick.player_id for pick in picks]
         )
+        played_by_player = dict(
+            self._db.execute(
+                select(PlayerGameweekStats.player_id, PlayerGameweekStats.played).where(
+                    PlayerGameweekStats.gameweek_id == gameweek.id,
+                    PlayerGameweekStats.player_id.in_(
+                        [pick.player_id for pick in picks]
+                    ),
+                )
+            ).all()
+        )
         total_squads = self._db.scalar(
             select(func.count(SquadGameweek.id)).where(
                 SquadGameweek.gameweek_id == gameweek.id
@@ -83,6 +112,7 @@ class SquadPointsService:
                     player_id=pick.player_id,
                     slot=pick.slot,
                     lineup_position=pick.lineup_position,
+                    played=played_by_player.get(pick.player_id, False),
                     points=pick.points,
                     multiplier=pick.multiplier,
                     effective_points=pick.effective_points,
@@ -96,12 +126,17 @@ class SquadPointsService:
         )
 
     def list_points(self, user_id: int, season_id: int) -> list[SquadPointsResponse]:
+        FPLLiveService(self._db).ensure_current_snapshot(user_id, season_id)
         numbers = list(
             self._db.scalars(
                 select(Gameweek.number)
                 .where(
                     Gameweek.season_id == season_id,
                     Gameweek.released.is_(True),
+                    or_(
+                        Gameweek.finished.is_(True),
+                        Gameweek.deadline_time <= utc_now_naive(),
+                    ),
                 )
                 .order_by(Gameweek.number)
             )
@@ -109,5 +144,5 @@ class SquadPointsService:
         return [
             result
             for number in numbers
-            if (result := self.get_points(user_id, season_id, number)) is not None
+            if (result := self._get_points(user_id, season_id, number)) is not None
         ]

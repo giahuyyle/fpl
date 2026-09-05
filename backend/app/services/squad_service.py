@@ -1,4 +1,5 @@
 from collections import Counter
+from random import SystemRandom
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -20,6 +21,11 @@ from app.models.squad import (
     SquadResponse,
     SquadUpsert,
 )
+from app.services.gameweek_deadline_service import (
+    GameweekDeadlineError,
+    GameweekDeadlineService,
+)
+from app.services.fpl_live_service import FPLLiveService
 from app.services.player_search_service import PlayerSearchService
 
 
@@ -103,6 +109,17 @@ class SquadService:
         )
         if rule is None:
             raise SquadValidationError("Game rules are unavailable for this season")
+        try:
+            GameweekDeadlineService(self._db).editable_gameweek(
+                payload.season_id, payload.gameweek_number
+            )
+        except GameweekDeadlineError as exc:
+            raise SquadValidationError(str(exc)) from exc
+        # Preserve the in-progress gameweek before replacing SquadPick rows with
+        # the user's choices for the next deadline.
+        FPLLiveService(self._db).ensure_current_snapshot(
+            user_id, payload.season_id
+        )
         if len(payload.picks) > rule.squad_size:
             raise SquadValidationError(
                 f"A squad may contain at most {rule.squad_size} players"
@@ -261,11 +278,12 @@ class SquadService:
             squad.bank = next_bank
             self._db.execute(delete(SquadPick).where(SquadPick.squad_id == squad.id))
 
-        lineup_positions = self._validate_lineup(
+        lineup_positions, captain_slot, vice_captain_slot = self._validate_lineup(
             payload,
             players,
             positions,
             is_complete,
+            assign_missing_roles=not was_complete,
         )
         for pick in payload.picks:
             _, _, stats = players[pick.player_id]
@@ -280,8 +298,8 @@ class SquadService:
                         if was_complete
                         else stats.now_cost
                     ),
-                    is_captain=pick.is_captain,
-                    is_vice_captain=pick.is_vice_captain,
+                    is_captain=pick.slot == captain_slot,
+                    is_vice_captain=pick.slot == vice_captain_slot,
                 )
             )
         self._db.flush()
@@ -310,7 +328,9 @@ class SquadService:
         players: dict[int, tuple[Player, Team, PlayerSeasonStats]],
         positions: list[Position],
         is_complete: bool,
-    ) -> dict[int, int]:
+        *,
+        assign_missing_roles: bool,
+    ) -> tuple[dict[int, int], int | None, int | None]:
         supplied_positions = [
             pick.lineup_position is not None for pick in payload.picks
         ]
@@ -341,21 +361,47 @@ class SquadService:
         else:
             lineup_positions = {}
 
-        captains = [pick for pick in payload.picks if pick.is_captain]
-        vice_captains = [pick for pick in payload.picks if pick.is_vice_captain]
-        if len(captains) > 1:
+        captain_slots = [pick.slot for pick in payload.picks if pick.is_captain]
+        vice_captain_slots = [
+            pick.slot for pick in payload.picks if pick.is_vice_captain
+        ]
+        if len(captain_slots) > 1:
             raise SquadValidationError("Select no more than one captain")
-        if len(vice_captains) > 1:
+        if len(vice_captain_slots) > 1:
             raise SquadValidationError("Select no more than one vice captain")
         if any(pick.is_captain and pick.is_vice_captain for pick in payload.picks):
             raise SquadValidationError(
                 "Captain and vice captain must be different players"
             )
-        for pick in captains + vice_captains:
-            if lineup_positions.get(pick.slot, 99) > 11:
+        for slot in captain_slots + vice_captain_slots:
+            if lineup_positions.get(slot, 99) > 11:
                 raise SquadValidationError(
                     "Captain and vice captain must be in the starting XI"
                 )
+
+        if is_complete and assign_missing_roles:
+            starter_slots = [
+                slot for slot, lineup_position in lineup_positions.items()
+                if lineup_position <= 11
+            ]
+            randomizer = SystemRandom()
+            if not captain_slots:
+                captain_slots = [
+                    randomizer.choice(
+                        [slot for slot in starter_slots if slot not in vice_captain_slots]
+                    )
+                ]
+            if not vice_captain_slots:
+                vice_captain_slots = [
+                    randomizer.choice(
+                        [slot for slot in starter_slots if slot not in captain_slots]
+                    )
+                ]
+
+        if is_complete and len(captain_slots) != 1:
+            raise SquadValidationError("A complete squad needs one captain")
+        if is_complete and len(vice_captain_slots) != 1:
+            raise SquadValidationError("A complete squad needs one vice captain")
 
         if is_complete:
             starter_counts: Counter[int] = Counter(
@@ -370,7 +416,11 @@ class SquadService:
                         f"Starting XI needs between {position.min_play} and "
                         f"{position.max_play} {position.code} players"
                     )
-        return lineup_positions
+        return (
+            lineup_positions,
+            captain_slots[0] if captain_slots else None,
+            vice_captain_slots[0] if vice_captain_slots else None,
+        )
 
     @staticmethod
     def _default_lineup_positions(payload: SquadUpsert) -> dict[int, int]:

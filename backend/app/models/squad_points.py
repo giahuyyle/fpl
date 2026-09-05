@@ -7,6 +7,7 @@ class ScoredPickResponse(ORMResponseModel):
     player_id: int
     slot: int
     lineup_position: int
+    played: bool
     points: int
     multiplier: int
     effective_points: int

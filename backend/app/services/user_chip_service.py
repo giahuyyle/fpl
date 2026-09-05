@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db.schema import Chip, Gameweek, UserChip
 from app.models.chip import ChipResponse, UserChipStateResponse
+from app.services.gameweek_deadline_service import (
+    GameweekDeadlineError,
+    GameweekDeadlineService,
+)
 
 
 class UserChipValidationError(ValueError):
@@ -21,9 +25,21 @@ class UserChipService:
         return self._responses(chips, states)
 
     def set_active(
-        self, user_id: int, season_id: int, chip_id: int | None
+        self,
+        user_id: int,
+        season_id: int,
+        chip_id: int | None,
+        gameweek_number: int | None = None,
     ) -> list[UserChipStateResponse]:
-        chips = self._display_chips(season_id)
+        try:
+            editable_gameweek = GameweekDeadlineService(self._db).editable_gameweek(
+                season_id, gameweek_number
+            )
+        except GameweekDeadlineError as exc:
+            raise UserChipValidationError(str(exc)) from exc
+        chips = self._display_chips(
+            season_id, editable_gameweek.number if editable_gameweek else None
+        )
         if not chips:
             raise UserChipValidationError("Chips are unavailable for this gameweek")
         states = self._ensure_states(user_id, season_id)
@@ -71,12 +87,24 @@ class UserChipService:
         self._db.flush()
         return states
 
-    def _display_chips(self, season_id: int) -> list[Chip]:
-        current_gameweek = self._db.scalar(
-            select(Gameweek)
-            .where(Gameweek.season_id == season_id, Gameweek.finished.is_(False))
-            .order_by(Gameweek.number)
-        )
+    def _display_chips(
+        self, season_id: int, gameweek_number: int | None = None
+    ) -> list[Chip]:
+        current_gameweek = None
+        if gameweek_number is not None:
+            current_gameweek = self._db.scalar(
+                select(Gameweek).where(
+                    Gameweek.season_id == season_id,
+                    Gameweek.number == gameweek_number,
+                )
+            )
+        if current_gameweek is None:
+            try:
+                current_gameweek = GameweekDeadlineService(
+                    self._db
+                ).editable_gameweek(season_id)
+            except GameweekDeadlineError:
+                current_gameweek = None
         if current_gameweek is None:
             current_gameweek = self._db.scalar(
                 select(Gameweek)

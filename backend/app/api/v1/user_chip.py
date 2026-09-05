@@ -32,7 +32,10 @@ def set_my_active_chip(
 ) -> list[UserChipStateResponse]:
     try:
         return UserChipService(session).set_active(
-            current_user.id, payload.season_id, payload.chip_id
+            current_user.id,
+            payload.season_id,
+            payload.chip_id,
+            payload.gameweek_number,
         )
     except UserChipValidationError as exc:
         raise HTTPException(

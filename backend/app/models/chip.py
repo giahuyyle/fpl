@@ -20,4 +20,5 @@ class UserChipStateResponse(ChipResponse):
 
 class ActiveChipUpdate(RequestModel):
     season_id: int
+    gameweek_number: int | None = None
     chip_id: int | None

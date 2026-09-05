@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -132,6 +132,15 @@ def test_gw1_and_gw2_are_backfilled_and_scored_from_current_squad(session: Sessi
         average_score=60,
         highest_score=130,
     )
+    make_gameweek(
+        session,
+        season,
+        fpl_id=3,
+        number=3,
+        name="Gameweek 3",
+        deadline_time=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(days=1),
+    )
     user = make_user(session)
     order = [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14, 2, 7, 12, 15]
     saved = SquadService(session).upsert_squad(
@@ -187,6 +196,8 @@ def test_gw1_and_gw2_are_backfilled_and_scored_from_current_squad(session: Sessi
     assert result.highest_points == 130
     assert result.total_points == snapshots[1].total_points
     assert len(result.picks) == 15
+    assert next(pick for pick in result.picks if pick.slot == 3).played is False
+    assert next(pick for pick in result.picks if pick.slot == 4).played is True
     assert [item.gameweek.number for item in SquadPointsService(session).list_points(user.id, market.season_id)] == [1, 2]
 
     placeholder = SquadPointsService(session).get_points(9999, market.season_id, 1)
@@ -194,6 +205,94 @@ def test_gw1_and_gw2_are_backfilled_and_scored_from_current_squad(session: Sessi
     assert placeholder.has_snapshot is False
     assert placeholder.points == 0
     assert SquadPointsService(session).get_points(user.id, 9999, 1) is None
+
+
+def test_squad_points_exclude_future_gameweeks(session: Session) -> None:
+    market = seed_market(session)
+    season = session.get(Season, market.season_id)
+    assert season is not None
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    make_gameweek(
+        session,
+        season,
+        deadline_time=now - timedelta(minutes=1),
+    )
+    make_gameweek(
+        session,
+        season,
+        fpl_id=2,
+        number=2,
+        name="Gameweek 2",
+        deadline_time=now + timedelta(days=1),
+        released=True,
+    )
+    user = make_user(session)
+    service = SquadPointsService(session)
+
+    assert service.get_points(user.id, market.season_id, 2) is None
+    current = service.get_points(user.id, market.season_id)
+    assert current is not None
+    assert current.gameweek.number == 1
+    assert [item.gameweek.number for item in service.list_points(
+        user.id, market.season_id
+    )] == [1]
+
+
+def test_ongoing_gameweek_recovers_snapshot_and_returns_live_points(
+    session: Session,
+) -> None:
+    market = seed_market(session)
+    season = session.get(Season, market.season_id)
+    assert season is not None
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    current = make_gameweek(
+        session,
+        season,
+        fpl_id=3,
+        number=3,
+        name="Gameweek 3",
+        deadline_time=now + timedelta(minutes=5),
+    )
+    make_gameweek(
+        session,
+        season,
+        fpl_id=4,
+        number=4,
+        name="Gameweek 4",
+        deadline_time=now + timedelta(days=7),
+    )
+    user = make_user(session)
+    order = [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14, 2, 7, 12, 15]
+    SquadService(session).upsert_squad(
+        user.id,
+        SquadUpsert(
+            season_id=market.season_id,
+            gameweek_number=3,
+            picks=lineup_picks(
+                market, order, captain_slot=13, vice_captain_slot=14
+            ),
+        ),
+    )
+    current.deadline_time = now - timedelta(minutes=30)
+    live = FPLLiveService(session)
+    live.sync_player_gameweek(
+        market.season_id, 3, event_payload(list(range(1, 16)))
+    )
+    assert live.create_due_snapshots(market.season_id) == 1
+
+    result = SquadPointsService(session).get_points(
+        user.id, market.season_id, 3
+    )
+
+    assert result is not None
+    assert result.has_snapshot is True
+    assert result.is_backfilled is False
+    assert result.provisional is True
+    assert result.points > 0
+    assert len(result.picks) == 15
+    assert FPLLiveService(session).ensure_current_snapshot(
+        user.id, market.season_id
+    ) == 0
 
 
 def test_sync_rejects_missing_gameweek_and_updates_existing_stats(session: Session) -> None:
@@ -256,6 +355,23 @@ def test_point_engine_handles_bench_boost_triple_captain_and_rank_ties(session: 
     FPLLiveService._score_picks(snapshot, picks, stats, positions, "3xc")
     assert picks[0].multiplier == 3
     assert snapshot.points == 26
+
+    # During live play, a captain whose fixture has not completed keeps the
+    # armband and automatic substitutions wait for final FPL confirmation.
+    stats[picks[0].player_id].played = False
+    FPLLiveService._score_picks(
+        snapshot,
+        picks,
+        stats,
+        positions,
+        None,
+        finalized=False,
+    )
+    assert picks[0].multiplier == 2
+    assert picks[1].multiplier == 1
+    assert all(pick.multiplier == 0 for pick in picks[11:])
+    assert not any(pick.was_auto_subbed for pick in picks)
+
     assert FPLLiveService._valid_formation_after(
         __import__("collections").Counter({"GKP": 1, "DEF": 5, "MID": 2, "FWD": 1}),
         ("DEF", 3, 5),

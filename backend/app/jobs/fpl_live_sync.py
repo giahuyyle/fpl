@@ -55,6 +55,11 @@ def _event_numbers_to_sync(bootstrap: dict[str, Any]) -> list[int]:
 def sync_once() -> dict[str, int]:
     bootstrap = get_ingestion_data()
     fixtures: list[dict[str, Any]] = _get_json(FPL_FIXTURES_API)
+    live_fixture_count = sum(
+        1
+        for fixture in fixtures
+        if fixture.get("started") and not fixture.get("finished")
+    )
     event_numbers = _event_numbers_to_sync(bootstrap)
     live_payloads = {
         number: _get_json(FPL_EVENT_LIVE_API.format(event=number))
@@ -93,7 +98,16 @@ def sync_once() -> dict[str, int]:
         "player_gameweek_rows": player_rows,
         "squad_snapshots": snapshots,
         "events": len(live_payloads),
+        "live_fixtures": live_fixture_count,
     }
+
+
+def _next_sync_delay(counts: dict[str, int]) -> int:
+    if counts["events"] == 0:
+        return 3600
+    if counts["live_fixtures"] > 0:
+        return 60
+    return 300
 
 
 def main() -> None:
@@ -107,8 +121,7 @@ def main() -> None:
         try:
             counts = sync_once()
             logger.info("FPL fixture and points sync completed: %s", counts)
-            if counts["events"] == 0:
-                delay = 3600
+            delay = _next_sync_delay(counts)
         except Exception:
             logger.exception("FPL fixture and points sync failed")
             delay = 60

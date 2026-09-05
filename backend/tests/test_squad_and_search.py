@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,6 +19,7 @@ from app.services.player_search_service import (
 from app.services.squad_service import SquadService, SquadValidationError
 from tests.factories import (
     make_game_rule,
+    make_gameweek,
     make_player,
     make_position,
     make_season,
@@ -256,6 +258,13 @@ def test_squad_service_saves_draft_and_complete_squad(session: Session) -> None:
     assert {pick.lineup_position for pick in complete.picks} == set(range(1, 16))
     starters = [pick for pick in complete.picks if (pick.lineup_position or 99) <= 11]
     assert len(starters) == 11
+    captains = [pick for pick in complete.picks if pick.is_captain]
+    vice_captains = [pick for pick in complete.picks if pick.is_vice_captain]
+    assert len(captains) == 1
+    assert len(vice_captains) == 1
+    assert captains[0].slot != vice_captains[0].slot
+    assert captains[0].lineup_position <= 11
+    assert vice_captains[0].lineup_position <= 11
     assert complete.spent == sum(range(41, 56))
 
     with pytest.raises(SquadValidationError, match="complete squad"):
@@ -272,7 +281,15 @@ def test_squad_service_uses_fpl_selling_prices_for_transfers(
     service = SquadService(session)
     original = service.upsert_squad(
         user.id,
-        SquadUpsert(season_id=market.season_id, picks=complete_picks(market)),
+        SquadUpsert(
+            season_id=market.season_id,
+            picks=lineup_picks(
+                market,
+                [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14, 2, 7, 12, 15],
+                captain_slot=13,
+                vice_captain_slot=14,
+            ),
+        ),
     )
     assert original.remaining_budget == 0
 
@@ -302,8 +319,15 @@ def test_squad_service_uses_fpl_selling_prices_for_transfers(
         web_name="Replacement",
     )
     make_stats(session, replacement, season, now_cost=43)
-    transfer_picks = complete_picks(market)
-    transfer_picks[0] = SquadPickInput(slot=1, player_id=replacement.id)
+    transfer_picks = lineup_picks(
+        market,
+        [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14, 2, 7, 12, 15],
+        captain_slot=13,
+        vice_captain_slot=14,
+    )
+    transfer_picks[0] = SquadPickInput(
+        slot=1, player_id=replacement.id, lineup_position=1
+    )
 
     transferred = service.upsert_squad(
         user.id,
@@ -321,7 +345,11 @@ def test_squad_service_uses_fpl_selling_prices_for_transfers(
         web_name="Unaffordable",
     )
     make_stats(session, unaffordable, season, now_cost=44)
-    transfer_picks[0] = SquadPickInput(slot=1, player_id=unaffordable.id)
+    transfer_picks[0] = SquadPickInput(
+        slot=1,
+        player_id=unaffordable.id,
+        lineup_position=1,
+    )
     with pytest.raises(SquadValidationError, match="budget"):
         service.upsert_squad(
             user.id,
@@ -590,5 +618,66 @@ def test_squad_profile_rejects_duplicate_favorite_clubs(session: Session) -> Non
                 name="Alex XI",
                 badge_style="classic-purple",
                 favorite_team_ids=[market.team_ids[0], market.team_ids[0]],
+            ),
+        )
+
+
+def test_squad_service_rejects_a_stale_gameweek_submission(
+    session: Session,
+) -> None:
+    market = seed_market(session)
+    season = session.get(Season, market.season_id)
+    assert season is not None
+    gameweek = make_gameweek(
+        session,
+        season,
+        deadline_time=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(days=1),
+    )
+    user = make_user(session)
+    service = SquadService(session)
+    saved = service.upsert_squad(
+        user.id,
+        SquadUpsert(
+            season_id=market.season_id,
+            gameweek_number=gameweek.number,
+            picks=complete_picks(market),
+        ),
+    )
+    assert saved.is_complete is True
+
+    gameweek.deadline_time = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+    )
+    with pytest.raises(SquadValidationError, match="deadline has passed"):
+        service.upsert_squad(
+            user.id,
+            SquadUpsert(
+                season_id=market.season_id,
+                gameweek_number=gameweek.number,
+                picks=[
+                    SquadPickInput(
+                        slot=pick.slot,
+                        player_id=pick.player.id,
+                        lineup_position=pick.lineup_position,
+                        is_captain=pick.is_captain,
+                        is_vice_captain=pick.is_vice_captain,
+                    )
+                    for pick in saved.picks
+                ],
+            ),
+        )
+    with pytest.raises(SquadValidationError, match="every gameweek deadline"):
+        service.upsert_squad(
+            user.id,
+            SquadUpsert(season_id=market.season_id, picks=[]),
+        )
+    with pytest.raises(SquadValidationError, match="Gameweek 38 is unavailable"):
+        service.upsert_squad(
+            user.id,
+            SquadUpsert(
+                season_id=market.season_id,
+                gameweek_number=38,
+                picks=[],
             ),
         )
