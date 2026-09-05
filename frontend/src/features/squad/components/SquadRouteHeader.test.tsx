@@ -50,6 +50,21 @@ describe('SquadRouteHeader', () => {
     expect(within(summary).queryByText('Money left')).not.toBeInTheDocument()
   })
 
+  it('uses the same alignment tracks for all five transfer metrics', () => {
+    render(<SquadRouteHeader {...props} mode="transfers" />)
+    const labels = ['Players selected', 'Budget', 'Squad value', 'Free transfers', 'Cost']
+    const cells = labels.map((label) => screen.getByText(label).parentElement)
+    const metrics = screen.getByText('Players selected').closest('dl')
+
+    expect(metrics).toHaveClass('min-w-0', 'wide:flex-1')
+    expect(metrics).not.toHaveClass('wide:min-w-[650px]')
+    expect(new Set(cells.map((cell) => cell?.className))).toHaveProperty('size', 1)
+    cells.forEach((cell) => {
+      expect(cell).toHaveClass('min-w-0', 'grid-rows-[2rem_auto]', 'place-items-center')
+    })
+    labels.forEach((label) => expect(screen.getByText(label)).toHaveClass('whitespace-normal'))
+  })
+
   it('shows official and calculated gameweek points', () => {
     const onNextGameweek = vi.fn()
     const onPreviousGameweek = vi.fn()
@@ -64,7 +79,7 @@ describe('SquadRouteHeader', () => {
     const summary = screen.getByRole('region', { name: 'Alex XI summary' })
     expect(within(summary).getByText('Gameweek 2')).toBeInTheDocument()
     expect(within(summary).getByText('92')).toBeInTheDocument()
-    expect(within(summary).getByText('Backfilled check')).toBeInTheDocument()
+    expect(within(summary).queryByText('Backfilled check')).not.toBeInTheDocument()
     within(summary).getByRole('button', { name: 'Previous gameweek' }).click()
     within(summary).getByRole('button', { name: 'Next gameweek' }).click()
     expect(onPreviousGameweek).toHaveBeenCalledOnce()
@@ -75,5 +90,14 @@ describe('SquadRouteHeader', () => {
     render(<SquadRouteHeader {...props} gameweekName="Gameweek 1" mode="view" />)
     expect(screen.getByRole('button', { name: 'Previous gameweek' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Next gameweek' })).toBeDisabled()
+  })
+
+  it('places route actions inside the summary below its details', () => {
+    render(<SquadRouteHeader {...props} actions={<button type="button">Save team</button>} />)
+    const summary = screen.getByRole('region', { name: 'Pick Team summary' })
+    const actions = within(summary).getByLabelText('Pick Team actions')
+
+    expect(within(actions).getByRole('button', { name: 'Save team' })).toBeInTheDocument()
+    expect(summary.lastElementChild).toBe(actions)
   })
 })

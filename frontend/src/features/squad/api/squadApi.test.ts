@@ -70,10 +70,10 @@ describe('squad API', () => {
     const saved = { id: 1, picks: [] }
     const fetchMock = vi.fn(() => response(saved))
     vi.stubGlobal('fetch', fetchMock)
-    await expect(saveSquad(2, [{ slot: 1, player_id: 9 }])).resolves.toEqual(saved)
+    await expect(saveSquad(2, [{ slot: 1, player_id: 9 }], 3)).resolves.toEqual(saved)
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/squads/me', expect.objectContaining({
       method: 'PUT',
-      body: JSON.stringify({ season_id: 2, picks: [{ slot: 1, player_id: 9 }] }),
+      body: JSON.stringify({ season_id: 2, picks: [{ slot: 1, player_id: 9 }], gameweek_number: 3 }),
     }))
   })
 
@@ -82,10 +82,10 @@ describe('squad API', () => {
     const fetchMock = vi.fn(() => response(states))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(setActiveChip(2, 4)).resolves.toEqual(states)
+    await expect(setActiveChip(2, 4, 3)).resolves.toEqual(states)
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me/chips/active', expect.objectContaining({
       method: 'PUT',
-      body: JSON.stringify({ season_id: 2, chip_id: 4 }),
+      body: JSON.stringify({ season_id: 2, chip_id: 4, gameweek_number: 3 }),
     }))
   })
 })

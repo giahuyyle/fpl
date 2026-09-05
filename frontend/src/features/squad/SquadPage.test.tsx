@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SquadPage } from './SquadPage'
-import type { Player, Position, Squad } from './api/squadApi'
+import type { Gameweek, Player, Position, Squad, SquadPoints } from './api/squadApi'
 
 const positions: Position[] = [
   { id: 1, code: 'GKP', name: 'Goalkeeper', squad_select: 2, min_play: 1, max_play: 1 },
@@ -61,8 +61,8 @@ function squadFrom(players: Player[], complete: boolean): Squad {
     lineup_position: complete ? lineupPositions[index + 1] : null,
     purchase_price: item.stats.now_cost,
     selling_price: item.stats.now_cost,
-    is_captain: false,
-    is_vice_captain: false,
+    is_captain: complete && index + 1 === 13,
+    is_vice_captain: complete && index + 1 === 14,
     player: item,
   }))
   const spent = players.reduce((total, item) => total + item.stats.now_cost, 0)
@@ -74,7 +74,42 @@ function squadFrom(players: Player[], complete: boolean): Squad {
   }
 }
 
-function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = [allPlayers[0]]) {
+function pointsFor(gameweek: Gameweek, squad: Squad, playerPoints = 1): SquadPoints {
+  const picks = squad.picks.map((pick) => ({
+    player_id: pick.player.id,
+    slot: pick.slot,
+    lineup_position: pick.lineup_position!,
+    played: true,
+    points: playerPoints,
+    multiplier: pick.is_captain ? 2 : pick.lineup_position! <= 11 ? 1 : 0,
+    effective_points: playerPoints * (pick.is_captain ? 2 : pick.lineup_position! <= 11 ? 1 : 0),
+    was_auto_subbed: false,
+    is_captain: pick.is_captain,
+    is_vice_captain: pick.is_vice_captain,
+    player: pick.player,
+  }))
+  return {
+    gameweek,
+    has_snapshot: true,
+    is_backfilled: false,
+    provisional: !gameweek.finished,
+    average_points: 0,
+    highest_points: null,
+    points: picks.reduce((total, pick) => total + pick.effective_points, 0),
+    transfer_cost: 0,
+    total_points: picks.reduce((total, pick) => total + pick.effective_points, 0),
+    gameweek_rank: null,
+    overall_rank: null,
+    total_squads: 1,
+    transfers: 0,
+    free_transfers: 1,
+    next_free_transfers: 2,
+    points_on_bench: 4 * playerPoints,
+    picks,
+  }
+}
+
+function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = [allPlayers[0]], pointsHistory: SquadPoints[] = []) {
   let chipStates = [
     { id: 1, fpl_id: 1, season_id: 1, name: 'bboost', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
     { id: 2, fpl_id: 2, season_id: 1, name: '3xc', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
@@ -89,7 +124,7 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
     if (url === '/api/v1/positions') return response(positions)
     if (url.startsWith('/api/v1/gameweeks')) return response([{
       id: 1, name: 'Gameweek 1', number: 1,
-      deadline_time: '2026-09-01T12:00:00Z', finished: false,
+      deadline_time: '2099-09-01T12:00:00Z', finished: false,
     }])
     if (url.startsWith('/api/v1/users/me/chips') && (!init?.method || init.method === 'GET')) return response(chipStates)
     if (url === '/api/v1/users/me/chips/active' && init?.method === 'PUT') {
@@ -100,7 +135,24 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
       }))
       return response(chipStates)
     }
+    if (url.startsWith('/api/v1/squads/me/points/history')) return response(pointsHistory)
     if (url.startsWith('/api/v1/squads/me') && (!init?.method || init.method === 'GET')) return response(initialSquad)
+    if (url.startsWith('/api/v1/fixtures')) return response([{
+      id: 1,
+      fpl_id: 1,
+      gameweek_id: 1,
+      home_team: teams[0],
+      away_team: teams[1],
+      home_score: null,
+      away_score: null,
+      kickoff_time: '2099-09-02T12:00:00Z',
+      started: false,
+      finished: false,
+      finished_provisional: false,
+      minutes: 0,
+      home_difficulty: 2,
+      away_difficulty: 4,
+    }])
     if (url === '/api/v1/players/search') return response({ total: searchItems.length, items: searchItems })
     if (url === '/api/v1/squads/me' && init?.method === 'PUT') {
       const body = JSON.parse(String(init.body)) as { picks: Array<{ slot: number; player_id: number; lineup_position?: number; is_captain?: boolean; is_vice_captain?: boolean }> }
@@ -137,7 +189,10 @@ describe('SquadPage', () => {
     window.localStorage.clear()
     window.sessionStorage.clear()
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
 
   it('shows 15 slots, searches filters, adds a player, and saves a draft', async () => {
     const user = userEvent.setup()
@@ -181,8 +236,10 @@ describe('SquadPage', () => {
     await user.click(resultButton)
     expect(screen.getByRole('button', { name: 'Save draft · 1/15' })).toBeInTheDocument()
     const pickedPlayer = screen.getByRole('button', { name: 'Open actions for Player 01' })
-    expect(within(pickedPlayer).getByRole('img', { name: 'Club One crest' })).toBeInTheDocument()
-    expect(within(pickedPlayer).getByText('Club One')).toBeInTheDocument()
+    expect(within(pickedPlayer).queryByRole('img', { name: 'Club One crest' })).not.toBeInTheDocument()
+    expect(within(pickedPlayer).queryByText('Club One')).not.toBeInTheDocument()
+    expect(within(pickedPlayer).getByText('TWO (H)')).toBeInTheDocument()
+    expect(within(pickedPlayer).getByText('£4.1m')).toBeInTheDocument()
     const pickedKit = pickedPlayer.querySelector('img[src="/kits/2026-27/shirt_10_1-220.webp"]')!
     expect(pickedKit).toBeInTheDocument()
     fireEvent.error(pickedKit)
@@ -217,6 +274,8 @@ describe('SquadPage', () => {
     await user.click(screen.getByRole('button', { name: /Save draft/ }))
     expect(await screen.findByText('Draft squad saved.')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/squads/me', expect.objectContaining({ method: 'PUT' }))
+    const saveCall = fetchMock.mock.calls.find(([input, init]) => String(input) === '/api/v1/squads/me' && init?.method === 'PUT')
+    expect(JSON.parse(String(saveCall?.[1]?.body))).toMatchObject({ gameweek_number: 1 })
   })
 
   it('edits the XI separately from the bench, assigns captaincy, and substitutes', async () => {
@@ -256,6 +315,7 @@ describe('SquadPage', () => {
     )
     expect(cardClasses).toHaveLength(15)
     expect(new Set(cardClasses)).toHaveProperty('size', 1)
+    expect(within(savedPitch).getAllByText('TWO (H)')).toHaveLength(3)
     await user.click(screen.getByRole('button', { name: 'Home' }))
     expect(window.location.pathname).toBe('/')
     window.history.replaceState({}, '', '/squad')
@@ -265,6 +325,9 @@ describe('SquadPage', () => {
     await user.click(screen.getByRole('button', { name: 'Pick team' }))
     expect(window.location.pathname).toBe('/squad/pick')
     expect(screen.getByRole('region', { name: 'Pick Team summary' })).toBeInTheDocument()
+    const pickTeamPlayer = screen.getByRole('button', { name: 'Open actions for Player 01' })
+    expect(within(pickTeamPlayer).getByText('TWO (H)')).toBeInTheDocument()
+    expect(within(pickTeamPlayer).queryByText('£4.1m')).not.toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Pick Team summary' })).getAllByText('Available')).toHaveLength(4)
     await user.click(screen.getByRole('button', { name: 'Activate Wildcard' }))
     expect(await screen.findByText('Wildcard activated.')).toHaveClass('text-[#05633d]')
@@ -277,7 +340,7 @@ describe('SquadPage', () => {
     expect(within(editPitch).getAllByRole('button', { name: /^Open actions/ })).toHaveLength(15)
     expect(within(editPitch).getByText('Substitutes')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Open actions for Player 13' }))
+    await user.click(screen.getByRole('button', { name: 'Open actions for Player 01' }))
     await user.click(screen.getByRole('button', { name: 'Make captain' }))
     expect(screen.getByRole('button', { name: 'Captain ✓' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(screen.getByRole('button', { name: 'Close player actions' }))
@@ -294,7 +357,7 @@ describe('SquadPage', () => {
     expect(window.location.pathname).toBe('/squad')
     const saveCalls = fetchMock.mock.calls.filter(([input, init]) => String(input) === '/api/v1/squads/me' && init?.method === 'PUT')
     const body = JSON.parse(String(saveCalls.at(-1)?.[1]?.body)) as { picks: Array<{ slot: number; lineup_position: number; is_captain: boolean }> }
-    expect(body.picks.find((pick) => pick.slot === 13)?.is_captain).toBe(true)
+    expect(body.picks.find((pick) => pick.slot === 1)?.is_captain).toBe(true)
     expect(body.picks.find((pick) => pick.slot === 12)?.lineup_position).toBeLessThanOrEqual(11)
     expect(body.picks.find((pick) => pick.slot === 6)?.lineup_position).toBeGreaterThan(11)
   })
@@ -388,6 +451,194 @@ describe('SquadPage', () => {
     expect(kit).not.toBeInTheDocument()
     expect(within(portrait).getByRole('img', { name: 'Generic player portrait' })).toBeInTheDocument()
     expect(screen.getAllByText('Gameweek 38')).toHaveLength(2)
+  })
+
+  it('exposes exactly one upcoming gameweek from the squad view', async () => {
+    const user = userEvent.setup()
+    const routed = fetchRouter(squadFrom(allPlayers, true), [])
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/gameweeks')) return response([
+        {
+          id: 1, name: 'Gameweek 1', number: 1,
+          deadline_time: '2000-08-20T12:00:00Z', finished: true,
+        },
+        {
+          id: 2, name: 'Gameweek 2', number: 2,
+          deadline_time: '2099-08-27T12:00:00Z', finished: false,
+        },
+        {
+          id: 3, name: 'Gameweek 3', number: 3,
+          deadline_time: '2099-09-03T12:00:00Z', finished: false,
+        },
+      ])
+      if (String(input).startsWith('/api/v1/fixtures')) return response([{
+        id: 2,
+        fpl_id: 2,
+        gameweek_id: 2,
+        home_team: teams[0],
+        away_team: teams[1],
+        home_score: null,
+        away_score: null,
+        kickoff_time: '2099-08-28T12:00:00Z',
+        started: false,
+        finished: false,
+        finished_provisional: false,
+        minutes: 0,
+        home_difficulty: 2,
+        away_difficulty: 4,
+      }])
+      return routed(input, init)
+    }))
+
+    render(<SquadPage routeMode="view" />)
+
+    const summary = await screen.findByRole('region', { name: 'Alex XI summary' })
+    expect(within(summary).getByText('Gameweek 1')).toBeInTheDocument()
+    const next = within(summary).getByRole('button', { name: 'Next gameweek' })
+    expect(next).toBeEnabled()
+    await user.click(next)
+    expect(within(summary).getByText('Gameweek 2')).toBeInTheDocument()
+    expect(within(summary).queryByText('Gameweek 3')).not.toBeInTheDocument()
+    const pitch = screen.getByRole('region', { name: 'Saved starting squad' })
+    expect(within(pitch).getAllByText('TWO (H)')).toHaveLength(3)
+    expect(within(pitch).queryByText(/ pts$/)).not.toBeInTheDocument()
+    expect(next).toBeDisabled()
+  })
+
+  it('defaults to the ongoing gameweek even when only the previous week has a snapshot', async () => {
+    const complete = squadFrom(allPlayers, true)
+    const previous: Gameweek = {
+      id: 2, name: 'Gameweek 2', number: 2,
+      deadline_time: '2000-08-20T12:00:00Z', finished: true,
+    }
+    const current: Gameweek = {
+      id: 3, name: 'Gameweek 3', number: 3,
+      deadline_time: '2000-08-27T12:00:00Z', finished: false,
+    }
+    const upcoming: Gameweek = {
+      id: 4, name: 'Gameweek 4', number: 4,
+      deadline_time: '2099-09-03T12:00:00Z', finished: false,
+    }
+    const routed = fetchRouter(complete, [], [pointsFor(previous, complete)])
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/gameweeks')) return response([previous, current, upcoming])
+      return routed(input, init)
+    }))
+
+    render(<SquadPage routeMode="view" />)
+
+    const summary = await screen.findByRole('region', { name: 'Alex XI summary' })
+    expect(within(summary).getByText('Gameweek 3')).toBeInTheDocument()
+    expect(within(summary).queryByText('Gameweek 2')).not.toBeInTheDocument()
+    expect(within(summary).getByRole('button', { name: 'Next gameweek' })).toBeEnabled()
+  })
+
+  it('refreshes provisional points while a gameweek is ongoing', async () => {
+    const complete = squadFrom(allPlayers, true)
+    const current: Gameweek = {
+      id: 3, name: 'Gameweek 3', number: 3,
+      deadline_time: '2000-08-27T12:00:00Z', finished: false,
+    }
+    const initialPoints = pointsFor(current, complete, 1)
+    const updatedPoints = pointsFor(current, complete, 3)
+    const routed = fetchRouter(complete, [], [initialPoints])
+    let historyRequests = 0
+    let refreshLive: (() => void) | undefined
+    vi.spyOn(window, 'setInterval').mockImplementation((handler: TimerHandler) => {
+      if (typeof handler === 'function') refreshLive = () => handler()
+      return 1
+    })
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/gameweeks')) return response([current])
+      if (String(input).startsWith('/api/v1/squads/me/points/history')) {
+        historyRequests += 1
+        return response([historyRequests === 1 ? initialPoints : updatedPoints])
+      }
+      return routed(input, init)
+    }))
+
+    render(<SquadPage routeMode="view" />)
+
+    const pitch = await screen.findByRole('region', { name: 'Saved starting squad' })
+    const playerCard = within(pitch).getByText('Player 01').parentElement!
+    expect(within(playerCard).getByText('1 pts')).toBeInTheDocument()
+    expect(refreshLive).toBeTypeOf('function')
+    await act(async () => { refreshLive?.() })
+    await waitFor(() => expect(within(playerCard).getByText('3 pts')).toBeInTheDocument())
+  })
+
+  it('shows effective gameweek points on view-mode cards', async () => {
+    const complete = squadFrom(allPlayers, true)
+    const gameweek = {
+      id: 1, name: 'Gameweek 1', number: 1,
+      deadline_time: '2000-08-20T12:00:00Z', finished: true,
+    }
+    const points: SquadPoints = {
+      gameweek,
+      has_snapshot: true,
+      is_backfilled: false,
+      provisional: false,
+      average_points: 50,
+      highest_points: 100,
+      points: 118,
+      transfer_cost: 0,
+      total_points: 118,
+      gameweek_rank: 1,
+      overall_rank: 1,
+      total_squads: 1,
+      transfers: 0,
+      free_transfers: 1,
+      next_free_transfers: 2,
+      points_on_bench: 0,
+      picks: complete.picks.map((pick) => ({
+        player_id: pick.player.id,
+        slot: pick.slot,
+        lineup_position: pick.lineup_position!,
+        played: true,
+        points: pick.slot,
+        multiplier: pick.is_captain ? 2 : 1,
+        effective_points: pick.is_captain ? pick.slot * 2 : pick.slot,
+        was_auto_subbed: false,
+        is_captain: pick.is_captain,
+        is_vice_captain: pick.is_vice_captain,
+        player: pick.player,
+      })),
+    }
+    const routed = fetchRouter(complete, [], [points])
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/gameweeks')) return response([gameweek])
+      return routed(input, init)
+    }))
+
+    render(<SquadPage routeMode="view" />)
+
+    const pitch = await screen.findByRole('region', { name: 'Saved starting squad' })
+    expect(within(pitch).getByText('26 pts')).toBeInTheDocument()
+    expect(within(pitch).queryByText('13 pts')).not.toBeInTheDocument()
+  })
+
+  it('shows the fixture until a player has played in the selected gameweek', async () => {
+    const complete = squadFrom(allPlayers, true)
+    const gameweek: Gameweek = {
+      id: 1, name: 'Gameweek 1', number: 1,
+      deadline_time: '2000-08-20T12:00:00Z', finished: false,
+    }
+    const points = pointsFor(gameweek, complete, 0)
+    points.picks[0].played = false
+    const routed = fetchRouter(complete, [], [points])
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/gameweeks')) return response([gameweek])
+      return routed(input, init)
+    }))
+
+    render(<SquadPage routeMode="view" />)
+
+    const pitch = await screen.findByRole('region', { name: 'Saved starting squad' })
+    const unplayedCard = within(pitch).getByText('Player 01').parentElement!
+    const playedCard = within(pitch).getByText('Player 02').parentElement!
+    expect(within(unplayedCard).getByText('TWO (H)')).toBeInTheDocument()
+    expect(within(unplayedCard).queryByText('0 pts')).not.toBeInTheDocument()
+    expect(within(playedCard).getByText('0 pts')).toBeInTheDocument()
   })
 
   it('shows budget and club-limit feedback before saving', async () => {

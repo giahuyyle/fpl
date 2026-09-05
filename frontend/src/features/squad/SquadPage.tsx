@@ -3,7 +3,7 @@ import { navigate } from '../../shared/lib/navigation'
 import { Brand } from '../../shared/ui/Brand'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
-import { loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
+import { loadSquadLiveData, loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
 import type { Fixture, Gameweek, Player, Position, Season, Squad, SquadPoints, SquadProfilePayload, Team, UserChipState } from './api/squadApi'
 import { FixturesPanel } from './components/FixturesPanel'
 import { PlayerMarket } from './components/PlayerMarket'
@@ -76,6 +76,22 @@ function readRecovery(seasonId: number): RecoveryMap {
   }
 }
 
+function gameweekHasStarted(gameweek: Gameweek, now: number) {
+  return gameweek.finished || new Date(gameweek.deadline_time).getTime() <= now
+}
+
+function opponentsForGameweek(fixtures: Fixture[], gameweekId?: number) {
+  if (!gameweekId) return {}
+  const opponents: Record<number, string[]> = {}
+  fixtures.filter((fixture) => fixture.gameweek_id === gameweekId).forEach((fixture) => {
+    ;(opponents[fixture.home_team.id] ??= []).push(`${fixture.away_team.short_name} (H)`)
+    ;(opponents[fixture.away_team.id] ??= []).push(`${fixture.home_team.short_name} (A)`)
+  })
+  return Object.fromEntries(
+    Object.entries(opponents).map(([teamId, labels]) => [Number(teamId), labels.join(' · ')]),
+  )
+}
+
 export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const initialRouteMode = useRef(routeMode)
   const [season, setSeason] = useState<Season | null>(null)
@@ -106,6 +122,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [chipUpdating, setChipUpdating] = useState(false)
+  const [currentTime, setCurrentTime] = useState(() => Date.now())
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -120,12 +137,16 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       setGameweeks(data.gameweeks)
       const loadedFixtures = Array.isArray(data.fixtures) ? data.fixtures : []
       const loadedPoints = Array.isArray(data.pointsHistory) ? data.pointsHistory : []
+      const now = Date.now()
+      const startedGameweeks = data.gameweeks.filter((item) => gameweekHasStarted(item, now))
+      const editableGameweek = data.gameweeks.find((item) => new Date(item.deadline_time).getTime() > now)
+      const requestedMode = initialRouteMode.current
       setFixtures(loadedFixtures)
       setPointsHistory(loadedPoints)
       setSelectedGameweekNumber(
-        loadedPoints.filter((item) => item.has_snapshot).at(-1)?.gameweek.number
-        ?? data.gameweeks.find((item) => !item.finished)?.number
-        ?? data.gameweeks.at(-1)?.number,
+        requestedMode === 'view'
+          ? startedGameweeks.at(-1)?.number ?? editableGameweek?.number
+          : editableGameweek?.number ?? startedGameweeks.at(-1)?.number,
       )
       setChips(data.chips)
       setSquad(data.squad)
@@ -134,7 +155,6 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       setLineupOrder(savedLineup(data.squad, loadedPicks))
       setCaptainSlot(data.squad?.picks.find((pick) => pick.is_captain)?.slot ?? null)
       setViceCaptainSlot(data.squad?.picks.find((pick) => pick.is_vice_captain)?.slot ?? null)
-      const requestedMode = initialRouteMode.current
       const loadedMode = data.squad?.is_complete ? requestedMode ?? 'view' : 'transfers'
       setInternalMode(loadedMode)
       if (!data.squad?.is_complete && requestedMode && requestedMode !== 'transfers') navigate('/squad/transfers')
@@ -154,6 +174,42 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }, [])
 
   useEffect(() => {
+    const nextDeadline = gameweeks
+      .map((item) => new Date(item.deadline_time).getTime())
+      .filter((deadline) => deadline > currentTime)
+      .sort((left, right) => left - right)[0]
+    if (!nextDeadline) return
+    const delay = Math.min(nextDeadline - currentTime + 250, 2_147_000_000)
+    const timer = window.setTimeout(() => setCurrentTime(Date.now()), delay)
+    return () => window.clearTimeout(timer)
+  }, [currentTime, gameweeks])
+
+  useEffect(() => {
+    if (!season?.id) return
+    const ongoingGameweek = gameweeks.some(
+      (gameweek) => gameweekHasStarted(gameweek, currentTime) && !gameweek.finished,
+    )
+    if (!ongoingGameweek) return
+    let active = true
+    const refresh = () => {
+      loadSquadLiveData(season.id).then((data) => {
+        if (!active) return
+        setGameweeks(data.gameweeks)
+        setFixtures(data.fixtures)
+        setPointsHistory(data.pointsHistory)
+        setCurrentTime(Date.now())
+      }).catch((error: unknown) => {
+        if (error instanceof AuthenticationRequiredError) navigate('/login')
+      })
+    }
+    const timer = window.setInterval(refresh, 60_000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [currentTime, gameweeks, season?.id])
+
+  useEffect(() => {
     if (!season) return
     window.localStorage.setItem(`fpl:squad-recovery:${season.id}`, JSON.stringify(recovery))
   }, [recovery, season])
@@ -167,10 +223,19 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const pickCount = selectedIds.size
   const actionPlayer = actionSlot ? picks[actionSlot] ?? recovery[actionSlot] : undefined
   const actionRemoved = Boolean(actionSlot && !picks[actionSlot] && recovery[actionSlot])
-  const selectedGameweekIndex = gameweeks.findIndex((item) => item.number === selectedGameweekNumber)
-  const selectedGameweek = selectedGameweekIndex >= 0 ? gameweeks[selectedGameweekIndex] : undefined
+  const pointGameweeks = gameweeks.filter((item) => gameweekHasStarted(item, currentTime))
+  const editableGameweek = gameweeks.find((item) => new Date(item.deadline_time).getTime() > currentTime)
+  const viewGameweeks = editableGameweek && !pointGameweeks.some((item) => item.id === editableGameweek.id)
+    ? [...pointGameweeks, editableGameweek]
+    : pointGameweeks
+  const navigableGameweeks = mode === 'view' ? viewGameweeks : gameweeks
+  const selectedGameweekIndex = navigableGameweeks.findIndex((item) => item.number === selectedGameweekNumber)
+  const selectedGameweek = selectedGameweekIndex >= 0 ? navigableGameweeks[selectedGameweekIndex] : undefined
   const selectedPoints = pointsHistory.find((item) => item.gameweek.number === selectedGameweekNumber)
-  const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.points]) ?? [])
+  const gameweekPlayed = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.played]) ?? [])
+  const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.effective_points]) ?? [])
+  const cardGameweek = mode === 'view' ? selectedGameweek : editableGameweek
+  const opponents = opponentsForGameweek(fixtures, cardGameweek?.id)
   const historicalPicks = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.slot, pick.player]) ?? [])
   const displayedPicks = mode === 'view' && selectedPoints?.has_snapshot ? historicalPicks : picks
   const displayedLineup = mode === 'view' && selectedPoints?.has_snapshot
@@ -338,17 +403,22 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   function chooseCaptain(slot: number) {
-    setCaptainSlot((current) => current === slot ? null : slot)
+    setCaptainSlot(slot)
     if (viceCaptainSlot === slot) setViceCaptainSlot(null)
   }
 
   function chooseViceCaptain(slot: number) {
-    setViceCaptainSlot((current) => current === slot ? null : slot)
+    setViceCaptainSlot(slot)
     if (captainSlot === slot) setCaptainSlot(null)
   }
 
   function enterMode(nextMode: SquadMode) {
     setInternalMode(nextMode)
+    setSelectedGameweekNumber(
+      nextMode === 'view'
+        ? pointGameweeks.at(-1)?.number ?? editableGameweek?.number
+        : editableGameweek?.number ?? pointGameweeks.at(-1)?.number,
+    )
     setActionSlot(null)
     setSubstituteFromSlot(null)
     setSelectedSlot(null)
@@ -358,6 +428,10 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
   async function submitSquad() {
     if (!season) return
+    if (!editableGameweek) {
+      setMessage('Squad changes are unavailable because every gameweek deadline has passed.')
+      return
+    }
     setSaving(true)
     setMessage('')
     try {
@@ -367,7 +441,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
         if (!player) return []
         const slot = Number(slotText)
         return [{ slot, player_id: player.id, ...(pickCount === 15 ? { lineup_position: positionsBySlot[slot], is_captain: slot === captainSlot, is_vice_captain: slot === viceCaptainSlot } : {}) }]
-      }))
+      }), editableGameweek.number)
       const savedPicks = Object.fromEntries(saved.picks.map((pick) => [pick.slot, pick.player]))
       setSquad(saved)
       setPicks(savedPicks)
@@ -411,13 +485,17 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   async function changeChip(chip: UserChipState) {
-    if (!season) return
+    if (!season || !editableGameweek) {
+      setMessage('Chip changes are unavailable because every gameweek deadline has passed.')
+      return
+    }
     setChipUpdating(true)
     setMessage('')
     try {
       const updated = await setActiveChip(
         season.id,
         chip.status === 'active' ? null : chip.id,
+        editableGameweek.number,
       )
       setChips(updated)
       setMessage(
@@ -437,16 +515,15 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
   const transferNeedsReplacement = mode === 'transfers' && Boolean(squad?.is_complete) && pickCount < 15
   const overBudget = mode === 'transfers' && draftBudget < 0
-  const helper = substituteFromSlot ? `Choose a starter or substitute to swap with ${picks[substituteFromSlot]?.web_name}.` : mode === 'pick-team' ? 'Select a player to make them captain, vice captain, or substitute them.' : mode === 'transfers' ? `Select a ${selectedPosition?.name.toLowerCase() ?? 'player'} slot or open a player’s transfer menu.` : 'Your saved starting XI and four substitutes.'
+  const missingLeaders = mode === 'pick-team' && pickCount === 15 && (!captainSlot || !viceCaptainSlot)
   const successfulMessage = ['activated', 'created', 'deactivated', 'saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
-  const nextGameweek = gameweeks.find((gameweek) => !gameweek.finished) ?? gameweeks.at(-1)
-  const deadline = nextGameweek ? new Intl.DateTimeFormat(undefined, {
+  const deadline = editableGameweek ? new Intl.DateTimeFormat(undefined, {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     month: 'short',
     weekday: 'short',
-  }).format(new Date(nextGameweek.deadline_time)) : null
+  }).format(new Date(editableGameweek.deadline_time)) : null
 
   return <main className="min-h-screen bg-[#f4f1f5] pb-16 text-ink">
     <header className="bg-pl-purple text-white">
@@ -454,21 +531,17 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
     </header>
 
     <div className="mx-auto max-w-[1440px] px-3 pt-6 tablet:px-8 tablet:pt-8">
-      <div className="mb-5 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm tablet:flex-row tablet:items-center tablet:justify-between">
-        <div><p className="text-xs font-bold text-pl-purple">{helper}</p><p className="mt-1 text-[10px] text-muted">2 GKP · 5 DEF · 5 MID · 3 FWD · Maximum 3 per club</p></div>
-        <div className="flex flex-wrap gap-2">
-          {squad?.is_complete && mode === 'view' && <><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('pick-team')} type="button">Pick team</button><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('transfers')} type="button">Transfers</button></>}
-          {mode !== 'view' && squad?.is_complete && <button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('view')} type="button">View squad</button>}
-          {mode !== 'view' && <button className="rounded-full bg-pl-pink px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_24px_#e9005240] disabled:opacity-55" disabled={saving || transferNeedsReplacement || overBudget} onClick={submitSquad} type="button">{saving ? 'Saving…' : transferNeedsReplacement ? 'Select a replacement' : overBudget ? `Over budget by ${price(Math.abs(draftBudget))}` : mode === 'pick-team' ? 'Save team' : pickCount === 15 ? squad?.is_complete ? 'Make transfers' : 'Save squad' : `Save draft · ${pickCount}/15`}</button>}
-        </div>
-      </div>
       {message && <p className={`mb-5 rounded-xl px-4 py-3 text-xs font-bold ${successfulMessage ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#fff1f5] text-[#8b0030]'}`} role="status">{message}</p>}
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={draftBudget} canGoNextGameweek={selectedGameweekIndex >= 0 && selectedGameweekIndex < gameweeks.length - 1} canGoPreviousGameweek={selectedGameweekIndex > 0} chipUpdating={chipUpdating} chips={chips} deadline={deadline} freeTransfers={freeTransfers} gameweekName={selectedGameweek?.name} mode={mode} onChipChange={changeChip} onNextGameweek={() => setSelectedGameweekNumber(gameweeks[selectedGameweekIndex + 1]?.number)} onPreviousGameweek={() => setSelectedGameweekNumber(gameweeks[selectedGameweekIndex - 1]?.number)} pickCount={pickCount} points={selectedPoints} squadName={squad?.name} squadValue={spent} transferCost={transferCost} />
-          <SquadPitch captainSlot={displayedCaptain} gameweekPoints={gameweekPoints} lineupOrder={displayedLineup} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={displayedPicks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={displayedViceCaptain} />
-          <FixturesPanel fixtures={fixtures} gameweeks={gameweeks} onGameweekChange={setSelectedGameweekNumber} selectedGameweekNumber={selectedGameweekNumber} />
+          <SquadRouteHeader actions={<>
+            {squad?.is_complete && mode === 'view' && <><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('pick-team')} type="button">Pick team</button><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('transfers')} type="button">Transfers</button></>}
+            {mode !== 'view' && squad?.is_complete && <button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('view')} type="button">View squad</button>}
+            {mode !== 'view' && <button className="rounded-full bg-pl-pink px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_24px_#e9005240] disabled:opacity-55" disabled={saving || transferNeedsReplacement || overBudget || missingLeaders || !editableGameweek} onClick={submitSquad} type="button">{saving ? 'Saving…' : !editableGameweek ? 'Changes closed' : transferNeedsReplacement ? 'Select a replacement' : overBudget ? `Over budget by ${price(Math.abs(draftBudget))}` : missingLeaders ? 'Select captain and vice captain' : mode === 'pick-team' ? 'Save team' : pickCount === 15 ? squad?.is_complete ? 'Make transfers' : 'Save squad' : `Save draft · ${pickCount}/15`}</button>}
+          </>} budget={draftBudget} canGoNextGameweek={selectedGameweekIndex >= 0 && selectedGameweekIndex < navigableGameweeks.length - 1} canGoPreviousGameweek={selectedGameweekIndex > 0} chipUpdating={chipUpdating} chips={chips} deadline={deadline} freeTransfers={freeTransfers} gameweekName={selectedGameweek?.name} mode={mode} onChipChange={changeChip} onNextGameweek={() => setSelectedGameweekNumber(navigableGameweeks[selectedGameweekIndex + 1]?.number)} onPreviousGameweek={() => setSelectedGameweekNumber(navigableGameweeks[selectedGameweekIndex - 1]?.number)} pickCount={pickCount} points={selectedPoints} squadName={squad?.name} squadValue={spent} transferCost={transferCost} />
+          <SquadPitch captainSlot={displayedCaptain} gameweekPlayed={gameweekPlayed} gameweekPoints={gameweekPoints} lineupOrder={displayedLineup} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} opponents={opponents} picks={displayedPicks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={displayedViceCaptain} />
+          <FixturesPanel fixtures={fixtures} gameweeks={navigableGameweeks} onGameweekChange={setSelectedGameweekNumber} selectedGameweekNumber={selectedGameweekNumber} />
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">
           {mode === 'transfers'

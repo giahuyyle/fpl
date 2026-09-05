@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react'
 import type { SquadPoints, UserChipState } from '../api/squadApi'
 import type { SquadMode } from './SquadPitch'
 import { Icon } from '../../../shared/ui/Icon'
 import { price } from '../squadConfig'
 
 type Props = {
+  actions?: ReactNode
   budget: number
   chipUpdating?: boolean
   chips: UserChipState[]
@@ -39,7 +41,7 @@ function chipKey(chip: UserChipState) {
   return null
 }
 
-export function SquadRouteHeader({ budget, canGoNextGameweek = false, canGoPreviousGameweek = false, chipUpdating = false, chips, deadline, freeTransfers = 1, gameweekName, mode, onChipChange, onNextGameweek, onPreviousGameweek, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
+export function SquadRouteHeader({ actions, budget, canGoNextGameweek = false, canGoPreviousGameweek = false, chipUpdating = false, chips, deadline, freeTransfers = 1, gameweekName, mode, onChipChange, onNextGameweek, onPreviousGameweek, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
   const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : squadName
   const visibleChips = chips.flatMap((chip) => {
     const key = chipKey(chip)
@@ -55,7 +57,6 @@ export function SquadRouteHeader({ budget, canGoNextGameweek = false, canGoPrevi
           <div className="min-w-0 text-center">
             <h1 className="truncate font-display text-3xl font-black tracking-[-.04em] text-pl-purple">{title}</h1>
             <p className="mt-2 text-sm font-bold text-muted">{gameweekName ?? points?.gameweek.name ?? 'Gameweek'}</p>
-            {points?.is_backfilled && <p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-pl-pink">Backfilled check</p>}
           </div>
           <button aria-label="Next gameweek" className="grid size-10 place-items-center justify-self-end rounded-full bg-[#f0eaf1] text-pl-purple transition hover:bg-[#e6dce8] disabled:cursor-not-allowed disabled:opacity-30 tablet:size-11" disabled={!canGoNextGameweek} onClick={onNextGameweek} type="button"><Icon name="chevron" size={20} /></button>
         </div>
@@ -63,12 +64,12 @@ export function SquadRouteHeader({ budget, canGoNextGameweek = false, canGoPrevi
           <h1 className="font-display text-3xl font-black tracking-[-.04em] text-pl-purple">{title}</h1>
           <p className="mt-2 text-sm font-bold text-muted">Deadline: {deadline ?? 'To be announced'}</p>
         </div>}
-      {mode === 'transfers' && <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[#e7e0e8] bg-[#faf8fb] text-center tablet:grid-cols-5">
-        <div className="px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Players selected</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{pickCount} / 15</dd></div>
-        <div className="border-l border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Budget</dt><dd className={`mt-1 font-display text-lg font-black ${budget < 0 ? 'text-pl-pink' : 'text-[#0b8f55]'}`}>{price(budget)}</dd></div>
-        <div className="border-l border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Squad value</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{price(squadValue)}</dd></div>
-        <div className="border-l border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Free transfers</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{freeTransfers}</dd></div>
-        <div className="border-l border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Cost</dt><dd className={`mt-1 font-display text-lg font-black ${transferCost > 0 ? 'text-pl-pink' : 'text-pl-purple'}`}>{transferCost} pts</dd></div>
+      {mode === 'transfers' && <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[#e7e0e8] bg-[#e7e0e8] text-center tablet:grid-cols-5 wide:flex-1">
+        <div className="grid min-w-0 grid-rows-[2rem_auto] place-items-center bg-[#faf8fb] px-3 py-4"><dt className="flex h-8 max-w-full items-center justify-center whitespace-normal text-center text-[8px] font-black uppercase leading-[1.35] tracking-[.12em] text-muted">Players selected</dt><dd className="mt-1 max-w-full self-start break-words font-display text-lg font-black text-pl-purple">{pickCount} / 15</dd></div>
+        <div className="grid min-w-0 grid-rows-[2rem_auto] place-items-center bg-[#faf8fb] px-3 py-4"><dt className="flex h-8 max-w-full items-center justify-center whitespace-normal text-center text-[8px] font-black uppercase leading-[1.35] tracking-[.12em] text-muted">Budget</dt><dd className={`mt-1 max-w-full self-start break-words font-display text-lg font-black ${budget < 0 ? 'text-pl-pink' : 'text-[#0b8f55]'}`}>{price(budget)}</dd></div>
+        <div className="grid min-w-0 grid-rows-[2rem_auto] place-items-center bg-[#faf8fb] px-3 py-4"><dt className="flex h-8 max-w-full items-center justify-center whitespace-normal text-center text-[8px] font-black uppercase leading-[1.35] tracking-[.12em] text-muted">Squad value</dt><dd className="mt-1 max-w-full self-start break-words font-display text-lg font-black text-pl-purple">{price(squadValue)}</dd></div>
+        <div className="grid min-w-0 grid-rows-[2rem_auto] place-items-center bg-[#faf8fb] px-3 py-4"><dt className="flex h-8 max-w-full items-center justify-center whitespace-normal text-center text-[8px] font-black uppercase leading-[1.35] tracking-[.12em] text-muted">Free transfers</dt><dd className="mt-1 max-w-full self-start break-words font-display text-lg font-black text-pl-purple">{freeTransfers}</dd></div>
+        <div className="grid min-w-0 grid-rows-[2rem_auto] place-items-center bg-[#faf8fb] px-3 py-4"><dt className="flex h-8 max-w-full items-center justify-center whitespace-normal text-center text-[8px] font-black uppercase leading-[1.35] tracking-[.12em] text-muted">Cost</dt><dd className={`mt-1 max-w-full self-start break-words font-display text-lg font-black ${transferCost > 0 ? 'text-pl-pink' : 'text-pl-purple'}`}>{transferCost} pts</dd></div>
       </dl>}
     </div>
     {mode === 'pick-team' && <div className="grid gap-px border-t border-[#e7e0e8] bg-[#e7e0e8] tablet:grid-cols-4">
@@ -90,5 +91,6 @@ export function SquadRouteHeader({ budget, canGoNextGameweek = false, canGoPrevi
         ['Transfers', String(points?.transfers ?? 0)],
       ].map(([label, value]) => <div className="bg-white px-3 py-5 text-center" key={label}><dd className="font-display text-2xl font-black text-pl-purple">{value}</dd><dt className="mt-1 text-[9px] font-bold text-muted">{label}</dt></div>)}
     </dl>}
+    {actions && <div aria-label={`${title} actions`} className="flex flex-wrap justify-end gap-2 border-t border-[#e7e0e8] px-5 py-4 tablet:px-7">{actions}</div>}
   </section>
 }

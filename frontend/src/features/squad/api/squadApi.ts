@@ -53,6 +53,7 @@ export type ScoredPick = {
   player_id: number
   slot: number
   lineup_position: number
+  played: boolean
   points: number
   multiplier: number
   effective_points: number
@@ -247,33 +248,41 @@ async function getJson<T>(url: string): Promise<T> {
 
 export async function loadSquadPageData() {
   const season = await getJson<Season>('/api/v1/seasons/current')
-  const [teams, positions, gameweeks, chips, squad, fixtures, pointsHistory] = await Promise.all([
+  const [teams, positions, chips, squad, liveData] = await Promise.all([
     getJson<Team[]>(`/api/v1/teams?season_id=${season.id}`),
     getJson<Position[]>('/api/v1/positions'),
-    getJson<Gameweek[]>(`/api/v1/gameweeks?season_id=${season.id}`),
     getJson<UserChipState[]>(`/api/v1/users/me/chips?season_id=${season.id}`),
     getJson<Squad | null>(`/api/v1/squads/me?season_id=${season.id}`),
-    getJson<Fixture[]>(`/api/v1/fixtures?season_id=${season.id}`).catch((error) => {
+    loadSquadLiveData(season.id),
+  ])
+  return { season, teams, positions, chips, squad, ...liveData }
+}
+
+export async function loadSquadLiveData(seasonId: number) {
+  const [gameweeks, fixtures, pointsHistory] = await Promise.all([
+    getJson<Gameweek[]>(`/api/v1/gameweeks?season_id=${seasonId}`),
+    getJson<Fixture[]>(`/api/v1/fixtures?season_id=${seasonId}`).catch((error) => {
       if (error instanceof AuthenticationRequiredError) throw error
       return []
     }),
-    getJson<SquadPoints[]>(`/api/v1/squads/me/points/history?season_id=${season.id}`).catch((error) => {
+    getJson<SquadPoints[]>(`/api/v1/squads/me/points/history?season_id=${seasonId}`).catch((error) => {
       if (error instanceof AuthenticationRequiredError) throw error
       return []
     }),
   ])
-  return { season, teams, positions, gameweeks, chips, squad, fixtures, pointsHistory }
+  return { gameweeks, fixtures, pointsHistory }
 }
 
 export async function setActiveChip(
   seasonId: number,
   chipId: number | null,
+  gameweekNumber?: number,
 ): Promise<UserChipState[]> {
   const response = await fetch('/api/v1/users/me/chips/active', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ season_id: seasonId, chip_id: chipId }),
+    body: JSON.stringify({ season_id: seasonId, chip_id: chipId, ...(gameweekNumber ? { gameweek_number: gameweekNumber } : {}) }),
   })
   if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
   if (!response.ok) throw new Error(await responseError(response, 'Unable to update chip.'))
@@ -294,12 +303,13 @@ export async function searchPlayers(payload: SearchPayload): Promise<PlayerSearc
 export async function saveSquad(
   seasonId: number,
   picks: SquadPickPayload[],
+  gameweekNumber?: number,
 ): Promise<Squad> {
   const response = await fetch('/api/v1/squads/me', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ season_id: seasonId, picks }),
+    body: JSON.stringify({ season_id: seasonId, picks, ...(gameweekNumber ? { gameweek_number: gameweekNumber } : {}) }),
   })
   if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
   if (!response.ok) throw new Error(await responseError(response, 'Unable to save your squad.'))
