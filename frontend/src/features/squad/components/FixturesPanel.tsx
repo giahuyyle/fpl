@@ -12,7 +12,7 @@ export function FixturesPanel({ gameweeks }: { gameweeks: Gameweek[] }) {
       {gameweek && <div className="tablet:text-right"><strong className="block text-sm text-pl-purple">{gameweek.name}</strong><span className="mt-1 block text-xs text-muted">Deadline · {deadline}</span></div>}
     </div>
     <div className="grid min-h-[220px] place-items-center px-5 py-10 text-center">
-      <div className="max-w-[460px]"><span className="mx-auto grid size-12 place-items-center rounded-full bg-[#f0eaf1] font-display text-xl font-black text-pl-purple">VS</span><h3 className="mt-4 font-display text-lg font-extrabold text-pl-purple">Fixture matchups are not in the current dataset</h3><p className="mt-2 text-sm leading-6 text-muted">The squad uses the data already ingested. Gameweek timing is ready here, and club-by-club fixtures will populate once that dataset is available.</p></div>
+      <div><span className="mx-auto grid size-12 place-items-center rounded-full bg-[#f0eaf1] font-display text-xl font-black text-pl-purple">VS</span><h3 className="mt-4 font-display text-lg font-extrabold text-pl-purple">Fixtures unavailable</h3></div>
     </div>
   </section>
 }
