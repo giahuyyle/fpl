@@ -24,9 +24,9 @@ from app.ingest.ingest import (
     _optional_float,
     _parse_date,
     _parse_datetime,
+    ingest_bootstrap_data,
     ingest_chips,
     ingest_gameweeks,
-    ingest_initial_data,
     ingest_phases,
     ingest_player_season_stats,
     ingest_players,
@@ -103,8 +103,8 @@ def test_full_ingestion_maps_all_data_and_is_idempotent(session: Session) -> Non
         is_current=True,
     )
 
-    first = ingest_initial_data(session)
-    second = ingest_initial_data(session, load_fpl_bootstrap_data())
+    first = ingest_bootstrap_data(session)
+    second = ingest_bootstrap_data(session, load_fpl_bootstrap_data())
 
     assert result_counts(first) == EXPECTED_COUNTS
     assert result_counts(second) == EXPECTED_COUNTS
@@ -263,7 +263,7 @@ def test_initial_ingestion_runner_rolls_back_on_failure(
         session.flush()
         raise RuntimeError("ingestion exploded")
 
-    monkeypatch.setattr(initial_ingestion, "ingest_initial_data", fail_after_insert)
+    monkeypatch.setattr(initial_ingestion, "ingest_bootstrap_data", fail_after_insert)
 
     with pytest.raises(RuntimeError, match="ingestion exploded"):
         initial_ingestion.run_initial_ingestion()
