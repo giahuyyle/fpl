@@ -7,6 +7,7 @@ export type SquadMode = 'view' | 'pick-team' | 'transfers'
 type PickMap = Record<number, Player | undefined>
 
 type Props = {
+  gameweekPoints?: Record<number, number>
   picks: PickMap
   positions: Position[]
   seasonName: string
@@ -42,9 +43,10 @@ function roleFor(slot: number, captainSlot: number | null, viceCaptainSlot: numb
   return undefined
 }
 
-function PlayerCard({ captainSlot, clickable, pending, player, seasonName, slot, viceCaptainSlot, onClick }: {
+function PlayerCard({ captainSlot, clickable, gameweekPoints, pending, player, seasonName, slot, viceCaptainSlot, onClick }: {
   captainSlot: number | null
   clickable: boolean
+  gameweekPoints?: number
   pending: boolean
   player: Player
   seasonName: string
@@ -52,7 +54,7 @@ function PlayerCard({ captainSlot, clickable, pending, player, seasonName, slot,
   viceCaptainSlot: number | null
   onClick: (slot: number) => void
 }) {
-  const token = <PlayerToken player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} />
+  const token = <PlayerToken gameweekPoints={gameweekPoints} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} />
   if (!clickable) return token
   return <div className="relative mx-auto w-full max-w-[112px] min-w-0">
     {pending && <span className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-pl-pink px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] text-white shadow-md">Swap</span>}
@@ -60,7 +62,7 @@ function PlayerCard({ captainSlot, clickable, pending, player, seasonName, slot,
   </div>
 }
 
-export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, captainSlot, viceCaptainSlot, selectedSlot, substituteFromSlot, onPlayerClick, onEmptySlot }: Props) {
+export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, captainSlot, viceCaptainSlot, selectedSlot, substituteFromSlot, gameweekPoints, onPlayerClick, onEmptySlot }: Props) {
   const sortedPositions = [...positions].sort(
     (a, b) => positionOrder.indexOf(a.code) - positionOrder.indexOf(b.code),
   )
@@ -97,14 +99,14 @@ export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, ca
       <PitchMarkings />
       <div className="relative z-10 flex min-h-[630px] flex-col justify-around tablet:min-h-[700px]">
         {positionOrder.map((code) => <div className="flex items-end justify-center gap-2 tablet:gap-5" key={code}>
-          {starters.filter(({ player }) => player.position.code === code).map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
+          {starters.filter(({ player }) => player.position.code === code).map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} gameweekPoints={mode === 'view' ? gameweekPoints?.[player.id] : undefined} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
         </div>)}
       </div>
     </div>
     <div className="border-t-4 border-pl-purple bg-[#d9f5e5] px-3 py-5 tablet:px-6">
       <p className="mb-4 text-center text-[9px] font-black uppercase tracking-[.18em] text-pl-purple">Substitutes</p>
       <div className="mx-auto grid max-w-[520px] grid-cols-4 items-end gap-2 tablet:gap-4">
-        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
+        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} gameweekPoints={mode === 'view' ? gameweekPoints?.[player.id] : undefined} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
       </div>
     </div>
   </section>

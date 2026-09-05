@@ -1,5 +1,5 @@
 import { Icon } from '../../../shared/ui/Icon'
-import type { BadgeStyle, Team } from '../api/squadApi'
+import type { BadgeStyle, SquadPoints, Team } from '../api/squadApi'
 import { price } from '../squadConfig'
 import { teamBadge } from '../squadConfig'
 import { SquadBadge } from './SquadBadge'
@@ -9,12 +9,13 @@ type Props = {
   bank: number
   favoriteTeams: Team[]
   onEdit: () => void
+  points?: SquadPoints
   squadName: string
   squadValue: number
   username: string
 }
 
-export function SquadInfoPanel({ badgeStyle, bank, favoriteTeams, onEdit, squadName, squadValue, username }: Props) {
+export function SquadInfoPanel({ badgeStyle, bank, favoriteTeams, onEdit, points, squadName, squadValue, username }: Props) {
   return <aside aria-label="Squad information" className="overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_#1700191c] wide:absolute wide:inset-0 wide:overflow-auto">
     <div className="flex items-center gap-4 border-b border-[#e9e3ea] px-5 py-6 tablet:px-7">
       <SquadBadge className="size-24 shrink-0" name={squadName} style={badgeStyle} />
@@ -23,6 +24,16 @@ export function SquadInfoPanel({ badgeStyle, bank, favoriteTeams, onEdit, squadN
         <p className="mt-1 truncate text-sm font-semibold text-muted">{username}</p>
       </div>
     </div>
+
+    <section className="border-b border-[#e9e3ea] px-5 py-7 tablet:px-7">
+      <h3 className="font-display text-xl font-extrabold text-pl-purple">Points &amp; rankings</h3>
+      <dl className="mt-5 grid gap-3 text-sm">
+        <div className="flex justify-between gap-4"><dt className="text-muted">Overall points</dt><dd className="font-bold text-pl-purple">{points?.total_points ?? 0}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-muted">Overall rank</dt><dd className="font-bold text-pl-purple">{points?.overall_rank?.toLocaleString() ?? '—'}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-muted">Total squads</dt><dd className="font-bold text-pl-purple">{points?.total_squads.toLocaleString() ?? 0}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-muted">Gameweek points</dt><dd className="font-bold text-pl-purple">{points?.points ?? 0}</dd></div>
+      </dl>
+    </section>
 
     <section className="border-b border-[#e9e3ea] px-5 py-7 tablet:px-7">
       <div className="flex items-center justify-between gap-3"><h3 className="font-display text-xl font-extrabold text-pl-purple">Team badge</h3><button className="rounded-full bg-[#f0eaf1] px-4 py-2 text-xs font-bold text-pl-purple" onClick={onEdit} type="button">Edit details</button></div>

@@ -4,6 +4,7 @@ import type { Player } from '../api/squadApi'
 import { kitImage, price, teamBadge } from '../squadConfig'
 
 type Props = {
+  gameweekPoints?: number
   player: Player
   seasonName: string
   role?: 'C' | 'V'
@@ -24,7 +25,7 @@ function PlayerPortrait({ image }: { image: string | null }) {
   </div>
 }
 
-export function PlayerToken({ player, seasonName, role }: Props) {
+export function PlayerToken({ gameweekPoints, player, seasonName, role }: Props) {
   const image = kitImage(seasonName, player.team.code, player.position.code)
 
   return <div className="group relative mx-auto w-full max-w-[112px] text-center">
@@ -36,7 +37,7 @@ export function PlayerToken({ player, seasonName, role }: Props) {
         <strong className="truncate font-display text-[10px] font-extrabold text-pl-purple tablet:text-[11px]">{player.web_name}</strong>
       </span>
       <span className="block truncate px-1 pb-1 text-[7px] font-semibold text-[#766a78] tablet:text-[8px]">{player.team.name}</span>
-      <span className="block bg-pl-purple px-1 py-0.5 text-[8px] font-bold text-white">{price(player.stats.now_cost)}</span>
+      <span className="block bg-pl-purple px-1 py-0.5 text-[8px] font-bold text-white">{gameweekPoints === undefined ? price(player.stats.now_cost) : `${gameweekPoints} pts`}</span>
     </div>
   </div>
 }

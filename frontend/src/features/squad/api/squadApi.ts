@@ -27,6 +27,59 @@ export type Gameweek = {
   number: number
   deadline_time: string
   finished: boolean
+  data_checked?: boolean
+  average_score?: number
+  highest_score?: number | null
+}
+
+export type Fixture = {
+  id: number
+  fpl_id: number
+  gameweek_id: number | null
+  home_team: Pick<Team, 'id' | 'name' | 'short_name' | 'code'>
+  away_team: Pick<Team, 'id' | 'name' | 'short_name' | 'code'>
+  home_score: number | null
+  away_score: number | null
+  kickoff_time: string | null
+  started: boolean
+  finished: boolean
+  finished_provisional: boolean
+  minutes: number
+  home_difficulty: number | null
+  away_difficulty: number | null
+}
+
+export type ScoredPick = {
+  player_id: number
+  slot: number
+  lineup_position: number
+  points: number
+  multiplier: number
+  effective_points: number
+  was_auto_subbed: boolean
+  is_captain: boolean
+  is_vice_captain: boolean
+  player: Player
+}
+
+export type SquadPoints = {
+  gameweek: Gameweek
+  has_snapshot: boolean
+  is_backfilled: boolean
+  provisional: boolean
+  average_points: number
+  highest_points: number | null
+  points: number
+  transfer_cost: number
+  total_points: number
+  gameweek_rank: number | null
+  overall_rank: number | null
+  total_squads: number
+  transfers: number
+  free_transfers: number
+  next_free_transfers: number
+  points_on_bench: number
+  picks: ScoredPick[]
 }
 
 export type Chip = {
@@ -194,14 +247,22 @@ async function getJson<T>(url: string): Promise<T> {
 
 export async function loadSquadPageData() {
   const season = await getJson<Season>('/api/v1/seasons/current')
-  const [teams, positions, gameweeks, chips, squad] = await Promise.all([
+  const [teams, positions, gameweeks, chips, squad, fixtures, pointsHistory] = await Promise.all([
     getJson<Team[]>(`/api/v1/teams?season_id=${season.id}`),
     getJson<Position[]>('/api/v1/positions'),
     getJson<Gameweek[]>(`/api/v1/gameweeks?season_id=${season.id}`),
     getJson<UserChipState[]>(`/api/v1/users/me/chips?season_id=${season.id}`),
     getJson<Squad | null>(`/api/v1/squads/me?season_id=${season.id}`),
+    getJson<Fixture[]>(`/api/v1/fixtures?season_id=${season.id}`).catch((error) => {
+      if (error instanceof AuthenticationRequiredError) throw error
+      return []
+    }),
+    getJson<SquadPoints[]>(`/api/v1/squads/me/points/history?season_id=${season.id}`).catch((error) => {
+      if (error instanceof AuthenticationRequiredError) throw error
+      return []
+    }),
   ])
-  return { season, teams, positions, gameweeks, chips, squad }
+  return { season, teams, positions, gameweeks, chips, squad, fixtures, pointsHistory }
 }
 
 export async function setActiveChip(

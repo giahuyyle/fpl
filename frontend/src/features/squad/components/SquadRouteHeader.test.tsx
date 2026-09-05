@@ -49,4 +49,19 @@ describe('SquadRouteHeader', () => {
     expect(within(summary).getByText('£-0.2m')).toHaveClass('text-pl-pink')
     expect(within(summary).queryByText('Money left')).not.toBeInTheDocument()
   })
+
+  it('shows official and calculated gameweek points', () => {
+    render(<SquadRouteHeader {...props} mode="view" points={{
+      gameweek: { id: 2, name: 'Gameweek 2', number: 2, deadline_time: '2026-08-28T17:30:00Z', finished: true },
+      has_snapshot: true, is_backfilled: true, provisional: false,
+      average_points: 60, highest_points: 130, points: 92, transfer_cost: 0,
+      total_points: 166, gameweek_rank: 1, overall_rank: 1, total_squads: 1,
+      transfers: 0, free_transfers: 2, next_free_transfers: 3,
+      points_on_bench: 4, picks: [],
+    }} squadName="Alex XI" />)
+    const summary = screen.getByRole('region', { name: 'Alex XI summary' })
+    expect(within(summary).getByText('Gameweek 2')).toBeInTheDocument()
+    expect(within(summary).getByText('92')).toBeInTheDocument()
+    expect(within(summary).getByText('Backfilled check')).toBeInTheDocument()
+  })
 })

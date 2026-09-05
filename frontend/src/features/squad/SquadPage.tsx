@@ -4,7 +4,7 @@ import { Brand } from '../../shared/ui/Brand'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
 import { loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
-import type { Gameweek, Player, Position, Season, Squad, SquadProfilePayload, Team, UserChipState } from './api/squadApi'
+import type { Fixture, Gameweek, Player, Position, Season, Squad, SquadPoints, SquadProfilePayload, Team, UserChipState } from './api/squadApi'
 import { FixturesPanel } from './components/FixturesPanel'
 import { PlayerMarket } from './components/PlayerMarket'
 import type { MarketFilters } from './components/PlayerMarket'
@@ -83,6 +83,9 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [teams, setTeams] = useState<Team[]>([])
   const [positions, setPositions] = useState<Position[]>([])
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([])
+  const [fixtures, setFixtures] = useState<Fixture[]>([])
+  const [pointsHistory, setPointsHistory] = useState<SquadPoints[]>([])
+  const [selectedGameweekNumber, setSelectedGameweekNumber] = useState<number | undefined>()
   const [chips, setChips] = useState<UserChipState[]>([])
   const [squad, setSquad] = useState<Squad | null>(null)
   const [picks, setPicks] = useState<PickMap>({})
@@ -115,6 +118,15 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       setTeams(data.teams)
       setPositions(data.positions)
       setGameweeks(data.gameweeks)
+      const loadedFixtures = Array.isArray(data.fixtures) ? data.fixtures : []
+      const loadedPoints = Array.isArray(data.pointsHistory) ? data.pointsHistory : []
+      setFixtures(loadedFixtures)
+      setPointsHistory(loadedPoints)
+      setSelectedGameweekNumber(
+        loadedPoints.filter((item) => item.has_snapshot).at(-1)?.gameweek.number
+        ?? data.gameweeks.find((item) => !item.finished)?.number
+        ?? data.gameweeks.at(-1)?.number,
+      )
       setChips(data.chips)
       setSquad(data.squad)
       setProfileOpen(!data.squad)
@@ -155,6 +167,25 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const pickCount = selectedIds.size
   const actionPlayer = actionSlot ? picks[actionSlot] ?? recovery[actionSlot] : undefined
   const actionRemoved = Boolean(actionSlot && !picks[actionSlot] && recovery[actionSlot])
+  const selectedPoints = pointsHistory.find((item) => item.gameweek.number === selectedGameweekNumber)
+  const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.points]) ?? [])
+  const historicalPicks = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.slot, pick.player]) ?? [])
+  const displayedPicks = mode === 'view' && selectedPoints?.has_snapshot ? historicalPicks : picks
+  const displayedLineup = mode === 'view' && selectedPoints?.has_snapshot
+    ? [...selectedPoints.picks].sort((a, b) => a.lineup_position - b.lineup_position).map((pick) => pick.slot)
+    : lineupOrder
+  const displayedCaptain = mode === 'view' && selectedPoints?.has_snapshot
+    ? selectedPoints.picks.find((pick) => pick.is_captain)?.slot ?? null
+    : captainSlot
+  const displayedViceCaptain = mode === 'view' && selectedPoints?.has_snapshot
+    ? selectedPoints.picks.find((pick) => pick.is_vice_captain)?.slot ?? null
+    : viceCaptainSlot
+  const savedPlayerIds = new Set(squad?.picks.map((pick) => pick.player.id) ?? [])
+  const draftTransfers = squad?.is_complete
+    ? [...selectedIds].filter((playerId) => !savedPlayerIds.has(playerId)).length
+    : 0
+  const freeTransfers = pointsHistory.filter((item) => item.has_snapshot).at(-1)?.next_free_transfers ?? 1
+  const transferCost = Math.max(0, draftTransfers - freeTransfers) * 4
 
   useEffect(() => {
     if (!season || mode !== 'transfers') return
@@ -433,14 +464,14 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={draftBudget} chipUpdating={chipUpdating} chips={chips} deadline={deadline} mode={mode} onChipChange={changeChip} pickCount={pickCount} squadName={squad?.name} squadValue={spent} />
-          <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
-          <FixturesPanel gameweeks={gameweeks} />
+          <SquadRouteHeader budget={draftBudget} chipUpdating={chipUpdating} chips={chips} deadline={deadline} freeTransfers={freeTransfers} mode={mode} onChipChange={changeChip} pickCount={pickCount} points={selectedPoints} squadName={squad?.name} squadValue={spent} transferCost={transferCost} />
+          <SquadPitch captainSlot={displayedCaptain} gameweekPoints={gameweekPoints} lineupOrder={displayedLineup} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={displayedPicks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={displayedViceCaptain} />
+          <FixturesPanel fixtures={fixtures} gameweeks={gameweeks} onGameweekChange={setSelectedGameweekNumber} selectedGameweekNumber={selectedGameweekNumber} />
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">
           {mode === 'transfers'
             ? <PlayerMarket filters={filters} loading={searching} onAdd={addPlayer} onFilters={setFilters} players={players} selectedIds={selectedIds} selectedPosition={selectedPosition} teams={teams} total={playerTotal} />
-            : <SquadInfoPanel badgeStyle={squad?.badge_style ?? 'classic-purple'} bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} favoriteTeams={squad?.favorite_teams ?? []} onEdit={() => setProfileOpen(true)} squadName={squad?.name ?? 'Squad'} squadValue={spent} username={user?.username ?? ''} />}
+            : <SquadInfoPanel badgeStyle={squad?.badge_style ?? 'classic-purple'} bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} favoriteTeams={squad?.favorite_teams ?? []} onEdit={() => setProfileOpen(true)} points={selectedPoints} squadName={squad?.name ?? 'Squad'} squadValue={spent} username={user?.username ?? ''} />}
         </div>
       </div>
     </div>
