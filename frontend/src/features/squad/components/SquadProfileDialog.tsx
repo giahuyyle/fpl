@@ -20,9 +20,11 @@ type Props = {
 }
 
 export function SquadProfileDialog({ onClose, onSave, open, saving, squad, teams }: Props) {
-  const [name, setName] = useState('Squad')
-  const [badgeStyle, setBadgeStyle] = useState<BadgeStyle>('classic-purple')
-  const [favoriteTeamIds, setFavoriteTeamIds] = useState<number[]>([])
+  const [name, setName] = useState(squad?.name ?? 'Squad')
+  const [badgeStyle, setBadgeStyle] = useState<BadgeStyle>(squad?.badge_style ?? 'classic-purple')
+  const [favoriteTeamIds, setFavoriteTeamIds] = useState<number[]>(
+    squad?.favorite_teams.map((team) => team.id) ?? [],
+  )
 
   if (!open) return null
 
