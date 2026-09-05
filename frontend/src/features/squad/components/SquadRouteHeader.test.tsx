@@ -51,7 +51,9 @@ describe('SquadRouteHeader', () => {
   })
 
   it('shows official and calculated gameweek points', () => {
-    render(<SquadRouteHeader {...props} mode="view" points={{
+    const onNextGameweek = vi.fn()
+    const onPreviousGameweek = vi.fn()
+    render(<SquadRouteHeader {...props} canGoNextGameweek canGoPreviousGameweek gameweekName="Gameweek 2" mode="view" onNextGameweek={onNextGameweek} onPreviousGameweek={onPreviousGameweek} points={{
       gameweek: { id: 2, name: 'Gameweek 2', number: 2, deadline_time: '2026-08-28T17:30:00Z', finished: true },
       has_snapshot: true, is_backfilled: true, provisional: false,
       average_points: 60, highest_points: 130, points: 92, transfer_cost: 0,
@@ -63,5 +65,15 @@ describe('SquadRouteHeader', () => {
     expect(within(summary).getByText('Gameweek 2')).toBeInTheDocument()
     expect(within(summary).getByText('92')).toBeInTheDocument()
     expect(within(summary).getByText('Backfilled check')).toBeInTheDocument()
+    within(summary).getByRole('button', { name: 'Previous gameweek' }).click()
+    within(summary).getByRole('button', { name: 'Next gameweek' }).click()
+    expect(onPreviousGameweek).toHaveBeenCalledOnce()
+    expect(onNextGameweek).toHaveBeenCalledOnce()
+  })
+
+  it('disables gameweek navigation at the available range edges', () => {
+    render(<SquadRouteHeader {...props} gameweekName="Gameweek 1" mode="view" />)
+    expect(screen.getByRole('button', { name: 'Previous gameweek' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next gameweek' })).toBeDisabled()
   })
 })

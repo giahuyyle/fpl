@@ -387,7 +387,7 @@ describe('SquadPage', () => {
     fireEvent.error(kit)
     expect(kit).not.toBeInTheDocument()
     expect(within(portrait).getByRole('img', { name: 'Generic player portrait' })).toBeInTheDocument()
-    expect(screen.getByText('Gameweek 38')).toBeInTheDocument()
+    expect(screen.getAllByText('Gameweek 38')).toHaveLength(2)
   })
 
   it('shows budget and club-limit feedback before saving', async () => {

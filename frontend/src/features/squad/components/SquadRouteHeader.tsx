@@ -1,5 +1,6 @@
 import type { SquadPoints, UserChipState } from '../api/squadApi'
 import type { SquadMode } from './SquadPitch'
+import { Icon } from '../../../shared/ui/Icon'
 import { price } from '../squadConfig'
 
 type Props = {
@@ -8,10 +9,15 @@ type Props = {
   chips: UserChipState[]
   deadline: string | null
   freeTransfers?: number
+  gameweekName?: string
+  canGoNextGameweek?: boolean
+  canGoPreviousGameweek?: boolean
   mode: SquadMode
   pickCount: number
   points?: SquadPoints
   onChipChange?: (chip: UserChipState) => void
+  onNextGameweek?: () => void
+  onPreviousGameweek?: () => void
   squadName?: string
   squadValue: number
   transferCost?: number
@@ -33,7 +39,7 @@ function chipKey(chip: UserChipState) {
   return null
 }
 
-export function SquadRouteHeader({ budget, chipUpdating = false, chips, deadline, freeTransfers = 1, mode, onChipChange, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
+export function SquadRouteHeader({ budget, canGoNextGameweek = false, canGoPreviousGameweek = false, chipUpdating = false, chips, deadline, freeTransfers = 1, gameweekName, mode, onChipChange, onNextGameweek, onPreviousGameweek, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
   const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : squadName
   const visibleChips = chips.flatMap((chip) => {
     const key = chipKey(chip)
@@ -43,11 +49,20 @@ export function SquadRouteHeader({ budget, chipUpdating = false, chips, deadline
 
   return <section aria-label={`${title} summary`} className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-sm">
     <div className={`flex flex-col gap-5 px-5 py-5 tablet:px-7 tablet:py-6 ${mode === 'transfers' ? 'wide:flex-row wide:items-center wide:justify-between' : ''}`}>
-      <div>
-        <h1 className="font-display text-3xl font-black tracking-[-.04em] text-pl-purple">{title}</h1>
-        <p className="mt-2 text-sm font-bold text-muted">{mode === 'view' && points ? points.gameweek.name : `Deadline: ${deadline ?? 'To be announced'}`}</p>
-        {mode === 'view' && points?.is_backfilled && <p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-pl-pink">Backfilled check</p>}
-      </div>
+      {mode === 'view'
+        ? <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-3 tablet:grid-cols-[44px_minmax(0,1fr)_44px]">
+          <button aria-label="Previous gameweek" className="grid size-10 place-items-center justify-self-start rounded-full bg-[#f0eaf1] text-pl-purple transition hover:bg-[#e6dce8] disabled:cursor-not-allowed disabled:opacity-30 tablet:size-11" disabled={!canGoPreviousGameweek} onClick={onPreviousGameweek} type="button"><span className="rotate-180"><Icon name="chevron" size={20} /></span></button>
+          <div className="min-w-0 text-center">
+            <h1 className="truncate font-display text-3xl font-black tracking-[-.04em] text-pl-purple">{title}</h1>
+            <p className="mt-2 text-sm font-bold text-muted">{gameweekName ?? points?.gameweek.name ?? 'Gameweek'}</p>
+            {points?.is_backfilled && <p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-pl-pink">Backfilled check</p>}
+          </div>
+          <button aria-label="Next gameweek" className="grid size-10 place-items-center justify-self-end rounded-full bg-[#f0eaf1] text-pl-purple transition hover:bg-[#e6dce8] disabled:cursor-not-allowed disabled:opacity-30 tablet:size-11" disabled={!canGoNextGameweek} onClick={onNextGameweek} type="button"><Icon name="chevron" size={20} /></button>
+        </div>
+        : <div>
+          <h1 className="font-display text-3xl font-black tracking-[-.04em] text-pl-purple">{title}</h1>
+          <p className="mt-2 text-sm font-bold text-muted">Deadline: {deadline ?? 'To be announced'}</p>
+        </div>}
       {mode === 'transfers' && <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[#e7e0e8] bg-[#faf8fb] text-center tablet:grid-cols-5">
         <div className="px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Players selected</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{pickCount} / 15</dd></div>
         <div className="border-l border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Budget</dt><dd className={`mt-1 font-display text-lg font-black ${budget < 0 ? 'text-pl-pink' : 'text-[#0b8f55]'}`}>{price(budget)}</dd></div>

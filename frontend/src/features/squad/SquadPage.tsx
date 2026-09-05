@@ -167,6 +167,8 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const pickCount = selectedIds.size
   const actionPlayer = actionSlot ? picks[actionSlot] ?? recovery[actionSlot] : undefined
   const actionRemoved = Boolean(actionSlot && !picks[actionSlot] && recovery[actionSlot])
+  const selectedGameweekIndex = gameweeks.findIndex((item) => item.number === selectedGameweekNumber)
+  const selectedGameweek = selectedGameweekIndex >= 0 ? gameweeks[selectedGameweekIndex] : undefined
   const selectedPoints = pointsHistory.find((item) => item.gameweek.number === selectedGameweekNumber)
   const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.points]) ?? [])
   const historicalPicks = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.slot, pick.player]) ?? [])
@@ -464,7 +466,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={draftBudget} chipUpdating={chipUpdating} chips={chips} deadline={deadline} freeTransfers={freeTransfers} mode={mode} onChipChange={changeChip} pickCount={pickCount} points={selectedPoints} squadName={squad?.name} squadValue={spent} transferCost={transferCost} />
+          <SquadRouteHeader budget={draftBudget} canGoNextGameweek={selectedGameweekIndex >= 0 && selectedGameweekIndex < gameweeks.length - 1} canGoPreviousGameweek={selectedGameweekIndex > 0} chipUpdating={chipUpdating} chips={chips} deadline={deadline} freeTransfers={freeTransfers} gameweekName={selectedGameweek?.name} mode={mode} onChipChange={changeChip} onNextGameweek={() => setSelectedGameweekNumber(gameweeks[selectedGameweekIndex + 1]?.number)} onPreviousGameweek={() => setSelectedGameweekNumber(gameweeks[selectedGameweekIndex - 1]?.number)} pickCount={pickCount} points={selectedPoints} squadName={squad?.name} squadValue={spent} transferCost={transferCost} />
           <SquadPitch captainSlot={displayedCaptain} gameweekPoints={gameweekPoints} lineupOrder={displayedLineup} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={displayedPicks} positions={positions} seasonName={season?.name ?? ''} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={displayedViceCaptain} />
           <FixturesPanel fixtures={fixtures} gameweeks={gameweeks} onGameweekChange={setSelectedGameweekNumber} selectedGameweekNumber={selectedGameweekNumber} />
         </div>
