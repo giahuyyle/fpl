@@ -16,7 +16,7 @@ function PlayerPortrait({ compact, image }: { compact: boolean; image: string | 
   return <div className={`relative mx-auto grid place-items-center overflow-hidden rounded-t-xl bg-[#f1eff2] ${compact ? 'h-[62px]' : 'h-[76px] tablet:h-[88px]'}`}>
     {!imageFailed && image && <img
       alt=""
-      className="mx-auto h-full max-w-full object-contain object-bottom drop-shadow-[0_6px_5px_#002c2055]"
+      className="mx-auto h-[86%] w-[86%] self-end object-contain object-bottom drop-shadow-[0_6px_5px_#002c2055]"
       loading="lazy"
       onError={() => setImageFailed(true)}
       src={image}
