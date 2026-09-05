@@ -1,4 +1,4 @@
-import type { PlayerStats, Position } from './api/squadApi'
+import type { Player, PlayerStats, Position, Squad } from './api/squadApi'
 
 export const positionOrder: Position['code'][] = ['GKP', 'DEF', 'MID', 'FWD']
 
@@ -50,6 +50,34 @@ export const statOptions: Array<{ field: keyof PlayerStats; label: string }> = [
 
 export function price(cost: number) {
   return `£${(cost / 10).toFixed(1)}m`
+}
+
+export function remainingDraftBudget(
+  picks: Record<number, Player | undefined>,
+  squad: Squad | null,
+  totalBudget: number,
+) {
+  const selected = Object.values(picks).filter(
+    (player): player is Player => Boolean(player),
+  )
+  if (!squad?.is_complete) {
+    return totalBudget - selected.reduce(
+      (total, player) => total + player.stats.now_cost,
+      0,
+    )
+  }
+
+  const selectedIds = new Set(selected.map((player) => player.id))
+  const originalIds = new Set(squad.picks.map((pick) => pick.player.id))
+  const sales = squad.picks.reduce(
+    (total, pick) => total + (selectedIds.has(pick.player.id) ? 0 : pick.selling_price),
+    0,
+  )
+  const purchases = selected.reduce(
+    (total, player) => total + (originalIds.has(player.id) ? 0 : player.stats.now_cost),
+    0,
+  )
+  return squad.remaining_budget + sales - purchases
 }
 
 export function teamBadge(code: number) {

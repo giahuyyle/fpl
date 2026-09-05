@@ -111,6 +111,7 @@ export type SquadPick = {
   slot: number
   lineup_position: number | null
   purchase_price: number
+  selling_price: number
   is_captain: boolean
   is_vice_captain: boolean
   player: Player

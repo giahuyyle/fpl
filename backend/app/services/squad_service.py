@@ -50,6 +50,23 @@ class SquadService:
                 f"A squad may contain at most {rule.squad_size} players"
             )
 
+        squad = self._db.scalar(
+            select(Squad).where(
+                Squad.user_id == user_id,
+                Squad.season_id == payload.season_id,
+            )
+        )
+        existing_picks = (
+            list(
+                self._db.scalars(
+                    select(SquadPick).where(SquadPick.squad_id == squad.id)
+                )
+            )
+            if squad is not None
+            else []
+        )
+        was_complete = bool(squad and squad.is_complete)
+
         slots = [pick.slot for pick in payload.picks]
         player_ids = [pick.player_id for pick in payload.picks]
         if len(slots) != len(set(slots)):
@@ -106,8 +123,6 @@ class SquadService:
             raise SquadValidationError(
                 f"Select no more than {rule.max_players_per_team} players from one club"
             )
-        if spent > rule.budget:
-            raise SquadValidationError("The selected players exceed the squad budget")
         for position in positions:
             if position_counts[position.id] > position.squad_select:
                 raise SquadValidationError(
@@ -115,6 +130,10 @@ class SquadService:
                 )
 
         is_complete = len(payload.picks) == rule.squad_size
+        if was_complete and not is_complete:
+            raise SquadValidationError(
+                "Transfers must leave a complete squad of 15 players"
+            )
         if is_complete:
             for position in positions:
                 if position_counts[position.id] != position.squad_select:
@@ -122,22 +141,66 @@ class SquadService:
                         f"A complete squad needs {position.squad_select} {position.code} players"
                     )
 
-        squad = self._db.scalar(
-            select(Squad).where(
-                Squad.user_id == user_id,
-                Squad.season_id == payload.season_id,
+        existing_purchase_prices = {
+            pick.player_id: pick.purchase_price for pick in existing_picks
+        }
+        if was_complete:
+            selected_player_ids = set(player_ids)
+            existing_player_ids = set(existing_purchase_prices)
+            outgoing_ids = existing_player_ids - selected_player_ids
+            incoming_ids = selected_player_ids - existing_player_ids
+            outgoing_costs = (
+                dict(
+                    self._db.execute(
+                        select(
+                            PlayerSeasonStats.player_id,
+                            PlayerSeasonStats.now_cost,
+                        ).where(
+                            PlayerSeasonStats.season_id == payload.season_id,
+                            PlayerSeasonStats.player_id.in_(outgoing_ids),
+                        )
+                    ).all()
+                )
+                if outgoing_ids
+                else {}
             )
-        )
+            transfer_budget = squad.bank
+            transfer_budget += sum(
+                self._selling_price(
+                    existing_purchase_prices[player_id],
+                    outgoing_costs[player_id],
+                    rule.transfer_sell_on_fee,
+                    rule.sell_at_purchase_price,
+                )
+                for player_id in outgoing_ids
+            )
+            transfer_budget -= sum(
+                players[player_id][2].now_cost for player_id in incoming_ids
+            )
+            if transfer_budget < 0:
+                raise SquadValidationError(
+                    "The selected players exceed the squad budget"
+                )
+            next_bank = transfer_budget
+        else:
+            next_bank = rule.budget - spent
+            if next_bank < 0:
+                raise SquadValidationError(
+                    "The selected players exceed the squad budget"
+                )
+
         if squad is None:
             squad = Squad(
                 user_id=user_id,
                 season_id=payload.season_id,
                 is_complete=is_complete,
+                bank=next_bank,
             )
             self._db.add(squad)
             self._db.flush()
         else:
             squad.is_complete = is_complete
+            squad.bank = next_bank
             self._db.execute(delete(SquadPick).where(SquadPick.squad_id == squad.id))
 
         lineup_positions = self._validate_lineup(
@@ -154,13 +217,33 @@ class SquadService:
                     player_id=pick.player_id,
                     slot=pick.slot,
                     lineup_position=lineup_positions.get(pick.slot),
-                    purchase_price=stats.now_cost,
+                    purchase_price=(
+                        existing_purchase_prices.get(pick.player_id, stats.now_cost)
+                        if was_complete
+                        else stats.now_cost
+                    ),
                     is_captain=pick.is_captain,
                     is_vice_captain=pick.is_vice_captain,
                 )
             )
         self._db.flush()
         return self._response(squad)
+
+    @staticmethod
+    def _selling_price(
+        purchase_price: int,
+        current_price: int,
+        sell_on_fee: float,
+        sell_at_purchase_price: bool,
+    ) -> int:
+        if sell_at_purchase_price:
+            return purchase_price
+        if current_price <= purchase_price:
+            return current_price
+        retained_profit = int(
+            (current_price - purchase_price) * (1 - sell_on_fee)
+        )
+        return purchase_price + retained_profit
 
     @classmethod
     def _validate_lineup(
@@ -280,7 +363,7 @@ class SquadService:
             is_complete=squad.is_complete,
             spent=spent,
             budget=rule.budget,
-            remaining_budget=rule.budget - spent,
+            remaining_budget=squad.bank,
             created_at=squad.created_at,
             updated_at=squad.updated_at,
             picks=[
@@ -289,6 +372,12 @@ class SquadService:
                     slot=pick.slot,
                     lineup_position=pick.lineup_position,
                     purchase_price=pick.purchase_price,
+                    selling_price=self._selling_price(
+                        pick.purchase_price,
+                        player_items[pick.player_id].stats.now_cost,
+                        rule.transfer_sell_on_fee,
+                        rule.sell_at_purchase_price,
+                    ),
                     is_captain=pick.is_captain,
                     is_vice_captain=pick.is_vice_captain,
                     player=player_items[pick.player_id],

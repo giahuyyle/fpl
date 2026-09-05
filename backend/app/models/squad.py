@@ -24,6 +24,7 @@ class SquadPickResponse(ORMResponseModel):
     slot: int
     lineup_position: int | None
     purchase_price: int
+    selling_price: int
     is_captain: bool
     is_vice_captain: bool
     player: PlayerSearchItem

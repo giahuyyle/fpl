@@ -112,6 +112,7 @@ class Squad(Base):
         ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True
     )
     is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bank: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

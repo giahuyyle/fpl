@@ -2,8 +2,8 @@ import { Icon } from '../../../shared/ui/Icon'
 import { price } from '../squadConfig'
 
 type Props = {
-  budget: number
-  spent: number
+  bank: number
+  squadValue: number
   username: string
 }
 
@@ -13,7 +13,7 @@ function BadgePlaceholder() {
   </div>
 }
 
-export function SquadInfoPanel({ budget, spent, username }: Props) {
+export function SquadInfoPanel({ bank, squadValue, username }: Props) {
   return <aside aria-label="Squad information" className="overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_#1700191c] wide:absolute wide:inset-0 wide:overflow-auto">
     <div className="flex items-center gap-4 border-b border-[#e9e3ea] px-5 py-6 tablet:px-7">
       <BadgePlaceholder />
@@ -39,8 +39,8 @@ export function SquadInfoPanel({ budget, spent, username }: Props) {
     <section className="px-5 py-7 tablet:px-7">
       <h3 className="font-display text-xl font-extrabold text-pl-purple">Finance</h3>
       <dl className="mt-5 grid gap-4 text-sm">
-        <div className="flex items-center justify-between gap-4"><dt className="text-muted">Squad value</dt><dd className="font-display text-lg font-extrabold text-pl-purple">{price(spent)}</dd></div>
-        <div className="flex items-center justify-between gap-4"><dt className="text-muted">In the bank</dt><dd className="font-display text-lg font-extrabold text-pl-purple">{price(budget - spent)}</dd></div>
+        <div className="flex items-center justify-between gap-4"><dt className="text-muted">Squad value</dt><dd className="font-display text-lg font-extrabold text-pl-purple">{price(squadValue)}</dd></div>
+        <div className="flex items-center justify-between gap-4"><dt className="text-muted">In the bank</dt><dd className="font-display text-lg font-extrabold text-pl-purple">{price(bank)}</dd></div>
       </dl>
     </section>
   </aside>

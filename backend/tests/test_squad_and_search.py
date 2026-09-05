@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.schema import GameRule, Player
+from app.db.schema import GameRule, Player, PlayerSeasonStats, Position, Season, Team
 from app.models.player_search import (
     PlayerSearchRequest,
     PlayerStatFilter,
@@ -258,12 +258,75 @@ def test_squad_service_saves_draft_and_complete_squad(session: Session) -> None:
     assert len(starters) == 11
     assert complete.spent == sum(range(41, 56))
 
-    cleared = service.upsert_squad(
-        user.id, SquadUpsert(season_id=market.season_id, picks=[])
+    with pytest.raises(SquadValidationError, match="complete squad"):
+        service.upsert_squad(
+            user.id, SquadUpsert(season_id=market.season_id, picks=[])
+        )
+
+
+def test_squad_service_uses_fpl_selling_prices_for_transfers(
+    session: Session,
+) -> None:
+    market = seed_market(session, budget=sum(range(41, 56)))
+    user = make_user(session)
+    service = SquadService(session)
+    original = service.upsert_squad(
+        user.id,
+        SquadUpsert(season_id=market.season_id, picks=complete_picks(market)),
     )
-    assert cleared.id == draft.id
-    assert cleared.picks == []
-    assert cleared.is_complete is False
+    assert original.remaining_budget == 0
+
+    outgoing_id = market.players_by_position["GKP"][0]
+    session.query(PlayerSeasonStats).filter_by(
+        player_id=outgoing_id,
+        season_id=market.season_id,
+    ).update({"now_cost": 45})
+    refreshed = service.get_squad(user.id, market.season_id)
+    assert refreshed is not None
+    assert refreshed.picks[0].purchase_price == 41
+    assert refreshed.picks[0].selling_price == 43
+    assert SquadService._selling_price(50, 47, 0.5, False) == 47
+    assert SquadService._selling_price(50, 53, 0.5, False) == 51
+    assert SquadService._selling_price(50, 53, 0.5, True) == 50
+
+    season = session.get(Season, market.season_id)
+    team = session.get(Team, market.team_ids[0])
+    position = session.get(Position, market.position_ids["GKP"])
+    assert season is not None and team is not None and position is not None
+    replacement = make_player(
+        session,
+        team,
+        position,
+        fpl_id=99,
+        code=10_099,
+        web_name="Replacement",
+    )
+    make_stats(session, replacement, season, now_cost=43)
+    transfer_picks = complete_picks(market)
+    transfer_picks[0] = SquadPickInput(slot=1, player_id=replacement.id)
+
+    transferred = service.upsert_squad(
+        user.id,
+        SquadUpsert(season_id=market.season_id, picks=transfer_picks),
+    )
+    assert transferred.remaining_budget == 0
+    assert transferred.picks[0].purchase_price == 43
+
+    unaffordable = make_player(
+        session,
+        team,
+        position,
+        fpl_id=100,
+        code=10_100,
+        web_name="Unaffordable",
+    )
+    make_stats(session, unaffordable, season, now_cost=44)
+    transfer_picks[0] = SquadPickInput(slot=1, player_id=unaffordable.id)
+    with pytest.raises(SquadValidationError, match="budget"):
+        service.upsert_squad(
+            user.id,
+            SquadUpsert(season_id=market.season_id, picks=transfer_picks),
+        )
 
 
 def test_squad_service_persists_custom_lineup_and_captains(session: Session) -> None:

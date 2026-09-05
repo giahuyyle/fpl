@@ -60,6 +60,7 @@ function squadFrom(players: Player[], complete: boolean): Squad {
     slot: index + 1,
     lineup_position: complete ? lineupPositions[index + 1] : null,
     purchase_price: item.stats.now_cost,
+    selling_price: item.stats.now_cost,
     is_captain: false,
     is_vice_captain: false,
     player: item,
@@ -100,6 +101,7 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
         slot: pick.slot,
         lineup_position: pick.lineup_position ?? null,
         purchase_price: selected[index].stats.now_cost,
+        selling_price: selected[index].stats.now_cost,
         is_captain: pick.is_captain ?? false,
         is_vice_captain: pick.is_vice_captain ?? false,
         player: selected[index],
@@ -347,6 +349,8 @@ describe('SquadPage', () => {
     await user.click((await screen.findByText('Player 05')).closest('button')!)
     expect(screen.getByRole('status')).toHaveTextContent('no more than three players')
     await user.click(screen.getByText('Player 04').closest('button')!)
-    expect(screen.getByRole('status')).toHaveTextContent('over budget')
+    expect(screen.getByRole('status')).toHaveTextContent('Over budget by £12.7m')
+    expect(screen.getByRole('button', { name: 'Over budget by £12.7m' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Open actions for Player 04' })).toBeInTheDocument()
   })
 })

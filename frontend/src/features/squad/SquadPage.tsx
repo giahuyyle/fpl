@@ -13,7 +13,7 @@ import { SquadInfoPanel } from './components/SquadInfoPanel'
 import { SquadPitch } from './components/SquadPitch'
 import type { SquadMode } from './components/SquadPitch'
 import { SquadRouteHeader } from './components/SquadRouteHeader'
-import { positionOrder } from './squadConfig'
+import { positionOrder, price, remainingDraftBudget } from './squadConfig'
 
 type PickMap = Record<number, Player | undefined>
 type RecoveryMap = Record<number, Player>
@@ -138,6 +138,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const selectedIds = useMemo(() => new Set(Object.values(picks).flatMap((player) => player ? [player.id] : [])), [picks])
   const spent = Object.values(picks).reduce((total, player) => total + (player?.stats.now_cost ?? 0), 0)
   const budget = squad?.budget ?? 1000
+  const draftBudget = remainingDraftBudget(picks, squad, budget)
   const pickCount = selectedIds.size
   const actionPlayer = actionSlot ? picks[actionSlot] ?? recovery[actionSlot] : undefined
   const actionRemoved = Boolean(actionSlot && !picks[actionSlot] && recovery[actionSlot])
@@ -182,17 +183,18 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       return false
     }
     const clubCount = Object.entries(picks).filter(([pickSlot, pick]) => Number(pickSlot) !== slot && pick?.team.id === player.team.id).length
-    const replacingCost = picks[slot]?.stats.now_cost ?? 0
     if (clubCount >= 3) {
       setMessage('You can select no more than three players from one club.')
       return false
     }
-    if (spent - replacingCost + player.stats.now_cost > budget) {
-      setMessage('That player would take your squad over budget.')
-      return false
-    }
     const nextPicks = { ...picks, [slot]: player }
     setPicks(nextPicks)
+    const nextBudget = remainingDraftBudget(nextPicks, squad, budget)
+    if (nextBudget < 0) {
+      setMessage(
+        `Over budget by ${price(Math.abs(nextBudget))}. Adjust your squad before saving.`,
+      )
+    }
     if (recovery[slot]?.id === player.id) {
       const nextRecovery = { ...recovery }
       delete nextRecovery[slot]
@@ -348,6 +350,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   if (loading) return <main className="grid min-h-screen place-items-center bg-paper text-pl-purple"><p role="status">Loading your squad…</p></main>
 
   const transferNeedsReplacement = mode === 'transfers' && Boolean(squad?.is_complete) && pickCount < 15
+  const overBudget = mode === 'transfers' && draftBudget < 0
   const helper = substituteFromSlot ? `Choose a starter or substitute to swap with ${picks[substituteFromSlot]?.web_name}.` : mode === 'pick-team' ? 'Select a player to make them captain, vice captain, or substitute them.' : mode === 'transfers' ? `Select a ${selectedPosition?.name.toLowerCase() ?? 'player'} slot or open a player’s transfer menu.` : 'Your saved starting XI and four substitutes.'
   const successfulMessage = ['saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
   const nextGameweek = gameweeks.find((gameweek) => !gameweek.finished) ?? gameweeks.at(-1)
@@ -370,21 +373,21 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
         <div className="flex flex-wrap gap-2">
           {squad?.is_complete && mode === 'view' && <><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('pick-team')} type="button">Pick team</button><button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('transfers')} type="button">Transfers</button></>}
           {mode !== 'view' && squad?.is_complete && <button className="rounded-full border border-pl-purple px-5 py-2.5 text-xs font-bold text-pl-purple" onClick={() => enterMode('view')} type="button">View squad</button>}
-          {mode !== 'view' && <button className="rounded-full bg-pl-pink px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_24px_#e9005240] disabled:opacity-55" disabled={saving || transferNeedsReplacement} onClick={submitSquad} type="button">{saving ? 'Saving…' : transferNeedsReplacement ? 'Select a replacement' : mode === 'pick-team' ? 'Save team' : pickCount === 15 ? squad?.is_complete ? 'Make transfers' : 'Save squad' : `Save draft · ${pickCount}/15`}</button>}
+          {mode !== 'view' && <button className="rounded-full bg-pl-pink px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_24px_#e9005240] disabled:opacity-55" disabled={saving || transferNeedsReplacement || overBudget} onClick={submitSquad} type="button">{saving ? 'Saving…' : transferNeedsReplacement ? 'Select a replacement' : overBudget ? `Over budget by ${price(Math.abs(draftBudget))}` : mode === 'pick-team' ? 'Save team' : pickCount === 15 ? squad?.is_complete ? 'Make transfers' : 'Save squad' : `Save draft · ${pickCount}/15`}</button>}
         </div>
       </div>
       {message && <p className={`mb-5 rounded-xl px-4 py-3 text-xs font-bold ${successfulMessage ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#fff1f5] text-[#8b0030]'}`} role="status">{message}</p>}
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={budget} chips={chips} deadline={deadline} mode={mode} pickCount={pickCount} spent={spent} />
+          <SquadRouteHeader budget={draftBudget} chips={chips} deadline={deadline} mode={mode} pickCount={pickCount} squadValue={spent} />
           <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
           <FixturesPanel gameweeks={gameweeks} />
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">
           {mode === 'transfers'
             ? <PlayerMarket filters={filters} loading={searching} onAdd={addPlayer} onFilters={setFilters} players={players} selectedIds={selectedIds} selectedPosition={selectedPosition} teams={teams} total={playerTotal} />
-            : <SquadInfoPanel budget={budget} spent={spent} username={user?.username ?? ''} />}
+            : <SquadInfoPanel bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} squadValue={spent} username={user?.username ?? ''} />}
         </div>
       </div>
     </div>

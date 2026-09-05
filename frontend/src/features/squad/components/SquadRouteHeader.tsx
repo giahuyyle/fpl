@@ -8,7 +8,7 @@ type Props = {
   deadline: string | null
   mode: SquadMode
   pickCount: number
-  spent: number
+  squadValue: number
   activeChip?: string | null
 }
 
@@ -28,7 +28,7 @@ function chipKey(chip: Chip) {
   return null
 }
 
-export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, mode, pickCount, spent }: Props) {
+export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, mode, pickCount, squadValue }: Props) {
   const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : 'Squad'
   const ingestedChipKeys = new Set(chips.flatMap((chip) => chipKey(chip) ? [chipKey(chip)!] : []))
   const visibleChips = chipDefinitions.filter((chip) => chips.length === 0 || ingestedChipKeys.has(chip.key))
@@ -41,8 +41,8 @@ export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, m
       </div>
       {mode === 'transfers' && <dl className="grid grid-cols-3 overflow-hidden rounded-2xl border border-[#e7e0e8] bg-[#faf8fb] text-center">
         <div className="px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Players selected</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{pickCount} / 15</dd></div>
-        <div className="border-x border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Money left</dt><dd className={`mt-1 font-display text-lg font-black ${budget - spent < 0 ? 'text-pl-pink' : 'text-[#0b8f55]'}`}>{price(budget - spent)}</dd></div>
-        <div className="px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Squad value</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{price(spent)}</dd></div>
+        <div className="border-x border-[#e7e0e8] px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Budget</dt><dd className={`mt-1 font-display text-lg font-black ${budget < 0 ? 'text-pl-pink' : 'text-[#0b8f55]'}`}>{price(budget)}</dd></div>
+        <div className="px-3 py-4"><dt className="text-[8px] font-black uppercase tracking-[.12em] text-muted">Squad value</dt><dd className="mt-1 font-display text-lg font-black text-pl-purple">{price(squadValue)}</dd></div>
       </dl>}
     </div>
     {mode === 'pick-team' && <div className="grid gap-px border-t border-[#e7e0e8] bg-[#e7e0e8] tablet:grid-cols-4">

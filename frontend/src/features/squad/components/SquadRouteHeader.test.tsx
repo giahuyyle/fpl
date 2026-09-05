@@ -8,7 +8,7 @@ const props = {
   deadline: 'Sat, 5 Sep, 01:30',
   mode: 'pick-team' as const,
   pickCount: 15,
-  spent: 995,
+  squadValue: 995,
 }
 
 describe('SquadRouteHeader', () => {
@@ -21,5 +21,13 @@ describe('SquadRouteHeader', () => {
     render(<SquadRouteHeader {...props} activeChip="wildcard" />)
     expect(within(screen.getByText('Wildcard').parentElement!).getByText('Active')).toBeInTheDocument()
     expect(screen.getAllByText('Unavailable')).toHaveLength(3)
+  })
+
+  it('labels the remaining transfer funds as budget', () => {
+    render(<SquadRouteHeader {...props} budget={-2} mode="transfers" />)
+    const summary = screen.getByRole('region', { name: 'Transfers summary' })
+    expect(within(summary).getByText('Budget')).toBeInTheDocument()
+    expect(within(summary).getByText('£-0.2m')).toHaveClass('text-pl-pink')
+    expect(within(summary).queryByText('Money left')).not.toBeInTheDocument()
   })
 })
