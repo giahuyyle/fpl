@@ -24,6 +24,11 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/auth/v1")
 
 
+@app.get("/")
+def welcome():
+    return {"message": "Welcome to FPL API"}
+
+
 @app.get("/health")
 def read_root():
     return {"status": "ok"}
