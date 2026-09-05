@@ -118,7 +118,28 @@ The ingestion runs in one transaction and creates or updates:
 The pipeline is idempotent: running it again updates existing records instead
 of inserting duplicates.
 
-### 3. Optional: run the frontend outside Docker
+### 3. Sync the season's kit assets
+
+Run this explicit job once near the start of each season, after updating the
+saved bootstrap data:
+
+```bash
+cd frontend
+npm run sync:kits
+```
+
+The command infers a folder such as `public/kits/2026-27` from gameweek
+deadlines and downloads one outfield and one goalkeeper kit per team. It is
+idempotent: valid local files are reused. Use `--force` to refresh every image,
+or `--dry-run` to inspect the intended sync. You can override inference with
+`npm run sync:kits -- --season 2026/27`.
+
+Generated kit images and their manifest stay local and are ignored by Git. The
+pitch displays a generic player placeholder when they are absent. Because the
+images and club marks come from the official FPL host, review the Premier
+League's current terms and permissions before use or redistribution.
+
+### 4. Optional: run the frontend outside Docker
 
 If you prefer to run the frontend directly on your machine, stop its container
 and start Vite locally:
