@@ -121,13 +121,24 @@ export type Squad = {
   id: number
   user_id: number
   season_id: number
+  name: string
+  badge_style: BadgeStyle
   is_complete: boolean
   spent: number
   budget: number
   remaining_budget: number
   created_at: string
   updated_at: string
+  favorite_teams: Team[]
   picks: SquadPick[]
+}
+
+export type BadgeStyle = 'classic-purple' | 'pink-purple' | 'cyan-purple' | 'green-navy'
+
+export type SquadProfilePayload = {
+  name: string
+  badge_style: BadgeStyle
+  favorite_team_ids: number[]
 }
 
 export type StatFilter = {
@@ -212,5 +223,20 @@ export async function saveSquad(
   })
   if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
   if (!response.ok) throw new Error(await responseError(response, 'Unable to save your squad.'))
+  return await response.json() as Squad
+}
+
+export async function updateSquadProfile(
+  seasonId: number,
+  profile: SquadProfilePayload,
+): Promise<Squad> {
+  const response = await fetch('/api/v1/squads/me/profile', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ season_id: seasonId, ...profile }),
+  })
+  if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
+  if (!response.ok) throw new Error(await responseError(response, 'Unable to save squad details.'))
   return await response.json() as Squad
 }

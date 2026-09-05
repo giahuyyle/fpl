@@ -3,14 +3,15 @@ import { navigate } from '../../shared/lib/navigation'
 import { Brand } from '../../shared/ui/Brand'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
-import { loadSquadPageData, saveSquad, searchPlayers } from './api/squadApi'
-import type { Chip, Gameweek, Player, Position, Season, Squad, Team } from './api/squadApi'
+import { loadSquadPageData, saveSquad, searchPlayers, updateSquadProfile } from './api/squadApi'
+import type { Chip, Gameweek, Player, Position, Season, Squad, SquadProfilePayload, Team } from './api/squadApi'
 import { FixturesPanel } from './components/FixturesPanel'
 import { PlayerMarket } from './components/PlayerMarket'
 import type { MarketFilters } from './components/PlayerMarket'
 import { SquadActionDrawer } from './components/SquadActionDrawer'
 import { SquadInfoPanel } from './components/SquadInfoPanel'
 import { SquadPitch } from './components/SquadPitch'
+import { SquadProfileDialog } from './components/SquadProfileDialog'
 import type { SquadMode } from './components/SquadPitch'
 import { SquadRouteHeader } from './components/SquadRouteHeader'
 import { positionOrder, price, remainingDraftBudget } from './squadConfig'
@@ -91,6 +92,8 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -105,6 +108,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       setGameweeks(data.gameweeks)
       setChips(data.chips)
       setSquad(data.squad)
+      setProfileOpen(!data.squad)
       setPicks(loadedPicks)
       setLineupOrder(savedLineup(data.squad, loadedPicks))
       setCaptainSlot(data.squad?.picks.find((pick) => pick.is_captain)?.slot ?? null)
@@ -347,12 +351,29 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
     }
   }
 
+  async function submitProfile(profile: SquadProfilePayload) {
+    if (!season) return
+    setProfileSaving(true)
+    setMessage('')
+    try {
+      const saved = await updateSquadProfile(season.id, profile)
+      setSquad(saved)
+      setProfileOpen(false)
+      setMessage(squad ? 'Squad details saved.' : 'Squad created.')
+    } catch (error) {
+      if (error instanceof AuthenticationRequiredError) navigate('/login')
+      else setMessage(error instanceof Error ? error.message : 'Unable to save squad details.')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
   if (loading) return <main className="grid min-h-screen place-items-center bg-paper text-pl-purple"><p role="status">Loading your squad…</p></main>
 
   const transferNeedsReplacement = mode === 'transfers' && Boolean(squad?.is_complete) && pickCount < 15
   const overBudget = mode === 'transfers' && draftBudget < 0
   const helper = substituteFromSlot ? `Choose a starter or substitute to swap with ${picks[substituteFromSlot]?.web_name}.` : mode === 'pick-team' ? 'Select a player to make them captain, vice captain, or substitute them.' : mode === 'transfers' ? `Select a ${selectedPosition?.name.toLowerCase() ?? 'player'} slot or open a player’s transfer menu.` : 'Your saved starting XI and four substitutes.'
-  const successfulMessage = ['saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
+  const successfulMessage = ['created', 'saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
   const nextGameweek = gameweeks.find((gameweek) => !gameweek.finished) ?? gameweeks.at(-1)
   const deadline = nextGameweek ? new Intl.DateTimeFormat(undefined, {
     day: 'numeric',
@@ -380,18 +401,19 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={draftBudget} chips={chips} deadline={deadline} mode={mode} pickCount={pickCount} squadValue={spent} />
+          <SquadRouteHeader budget={draftBudget} chips={chips} deadline={deadline} mode={mode} pickCount={pickCount} squadName={squad?.name} squadValue={spent} />
           <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
           <FixturesPanel gameweeks={gameweeks} />
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">
           {mode === 'transfers'
             ? <PlayerMarket filters={filters} loading={searching} onAdd={addPlayer} onFilters={setFilters} players={players} selectedIds={selectedIds} selectedPosition={selectedPosition} teams={teams} total={playerTotal} />
-            : <SquadInfoPanel bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} squadValue={spent} username={user?.username ?? ''} />}
+            : <SquadInfoPanel badgeStyle={squad?.badge_style ?? 'classic-purple'} bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} favoriteTeams={squad?.favorite_teams ?? []} onEdit={() => setProfileOpen(true)} squadName={squad?.name ?? 'Squad'} squadValue={spent} username={user?.username ?? ''} />}
         </div>
       </div>
     </div>
 
     {mode !== 'view' && actionSlot && actionPlayer && <SquadActionDrawer isCaptain={captainSlot === actionSlot} isStarter={lineupOrder.indexOf(actionSlot) < 11} isViceCaptain={viceCaptainSlot === actionSlot} mode={mode} onCaptain={() => chooseCaptain(actionSlot)} onClose={() => setActionSlot(null)} onRemove={() => removeTransferPlayer(actionSlot)} onRestore={() => restoreOriginal(actionSlot)} onSelectReplacement={() => selectReplacement(actionSlot)} onSubstitute={() => beginSubstitution(actionSlot)} onViceCaptain={() => chooseViceCaptain(actionSlot)} player={actionPlayer} removed={actionRemoved} />}
+    {profileOpen && <SquadProfileDialog onClose={() => setProfileOpen(false)} onSave={submitProfile} open saving={profileSaving} squad={squad} teams={teams} />}
   </main>
 }

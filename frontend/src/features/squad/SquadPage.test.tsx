@@ -68,6 +68,7 @@ function squadFrom(players: Player[], complete: boolean): Squad {
   const spent = players.reduce((total, item) => total + item.stats.now_cost, 0)
   return {
     id: 1, user_id: 1, season_id: 1, is_complete: complete,
+    name: 'Alex XI', badge_style: 'classic-purple', favorite_teams: [teams[0]],
     spent, budget: 1000, remaining_budget: 1000 - spent,
     created_at: '2026-08-30T00:00:00Z', updated_at: '2026-08-30T00:00:00Z', picks,
   }
@@ -90,7 +91,7 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
       { id: 3, fpl_id: 3, season_id: 1, name: 'wildcard', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38 },
       { id: 4, fpl_id: 4, season_id: 1, name: 'freehit', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38 },
     ])
-    if (url.startsWith('/api/v1/squads/me') && init?.method !== 'PUT') return response(initialSquad)
+    if (url.startsWith('/api/v1/squads/me') && (!init?.method || init.method === 'GET')) return response(initialSquad)
     if (url === '/api/v1/players/search') return response({ total: searchItems.length, items: searchItems })
     if (url === '/api/v1/squads/me' && init?.method === 'PUT') {
       const body = JSON.parse(String(init.body)) as { picks: Array<{ slot: number; player_id: number; lineup_position?: number; is_captain?: boolean; is_vice_captain?: boolean }> }
@@ -107,6 +108,15 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
         player: selected[index],
       }))
       return response(saved)
+    }
+    if (url === '/api/v1/squads/me/profile' && init?.method === 'PATCH') {
+      const body = JSON.parse(String(init.body)) as { name: string; badge_style: Squad['badge_style']; favorite_team_ids: number[] }
+      return response({
+        ...(initialSquad ?? squadFrom([], false)),
+        name: body.name,
+        badge_style: body.badge_style,
+        favorite_teams: teams.filter((team) => body.favorite_team_ids.includes(team.id)),
+      })
     }
     return response({ detail: 'Not found' }, 404)
   })
@@ -125,6 +135,15 @@ describe('SquadPage', () => {
     const fetchMock = fetchRouter()
     vi.stubGlobal('fetch', fetchMock)
     render(<SquadPage />)
+
+    expect(await screen.findByRole('dialog', { name: 'Create your squad' })).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Squad name'))
+    await user.type(screen.getByLabelText('Squad name'), 'Matchday Makers')
+    await user.click(screen.getByLabelText('Cyan'))
+    await user.click(screen.getByLabelText('Club One'))
+    await user.click(screen.getByRole('button', { name: 'Create squad' }))
+    expect(await screen.findByText('Squad created.')).toHaveClass('text-[#05633d]')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()
     const summary = screen.getByRole('region', { name: 'Transfers summary' })
@@ -195,13 +214,24 @@ describe('SquadPage', () => {
     render(<SquadPage />)
 
     const savedPitch = await screen.findByRole('region', { name: 'Saved starting squad' })
-    expect(screen.getByRole('region', { name: 'Squad summary' })).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Squad summary' })).getByText('Average points')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Alex XI summary' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Alex XI summary' })).getByText('Average points')).toBeInTheDocument()
     const squadInfo = screen.getByRole('complementary', { name: 'Squad information' })
-    expect(within(squadInfo).getByRole('heading', { name: 'Squad' })).toBeInTheDocument()
+    expect(within(squadInfo).getByRole('heading', { name: 'Alex XI' })).toBeInTheDocument()
     expect(within(squadInfo).getByText('alex')).toBeInTheDocument()
+    expect(within(squadInfo).getAllByRole('img', { name: 'Alex XI badge' })).toHaveLength(2)
     expect(within(squadInfo).getByRole('heading', { name: 'Team badge' })).toBeInTheDocument()
     expect(within(squadInfo).getByRole('heading', { name: 'Fan league' })).toBeInTheDocument()
+    expect(within(squadInfo).getByText('Club One')).toBeInTheDocument()
+    await user.click(within(squadInfo).getByRole('button', { name: 'Edit details' }))
+    expect(screen.getByRole('dialog', { name: 'Edit squad' })).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Squad name'))
+    await user.type(screen.getByLabelText('Squad name'), 'Title Winners')
+    await user.click(screen.getByLabelText('Pink'))
+    await user.click(screen.getByLabelText('Club Two'))
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+    expect(await screen.findByText('Squad details saved.')).toHaveClass('text-[#05633d]')
+    expect(within(squadInfo).getByRole('heading', { name: 'Title Winners' })).toBeInTheDocument()
     expect(screen.queryByRole('complementary', { name: 'Player search' })).not.toBeInTheDocument()
     expect(within(savedPitch).getAllByText(/Player/)).toHaveLength(15)
     expect(screen.getByText('Substitutes')).toBeInTheDocument()

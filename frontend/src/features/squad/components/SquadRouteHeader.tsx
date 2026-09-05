@@ -8,6 +8,7 @@ type Props = {
   deadline: string | null
   mode: SquadMode
   pickCount: number
+  squadName?: string
   squadValue: number
   activeChip?: string | null
 }
@@ -28,8 +29,8 @@ function chipKey(chip: Chip) {
   return null
 }
 
-export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, mode, pickCount, squadValue }: Props) {
-  const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : 'Squad'
+export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, mode, pickCount, squadName = 'Squad', squadValue }: Props) {
+  const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : squadName
   const ingestedChipKeys = new Set(chips.flatMap((chip) => chipKey(chip) ? [chipKey(chip)!] : []))
   const visibleChips = chipDefinitions.filter((chip) => chips.length === 0 || ingestedChipKeys.has(chip.key))
 
