@@ -358,6 +358,158 @@ class Gameweek(Base):
     top_player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"))
 
 
+class Fixture(Base):
+    __tablename__ = "fixtures"
+    __table_args__ = (
+        UniqueConstraint("season_id", "fpl_id"),
+        Index("ix_fixtures_gameweek_kickoff", "gameweek_id", "kickoff_time"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    fpl_id: Mapped[int] = mapped_column(nullable=False)
+    code: Mapped[int] = mapped_column(nullable=False)
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    gameweek_id: Mapped[int | None] = mapped_column(
+        ForeignKey("gameweeks.id", ondelete="SET NULL"), index=True
+    )
+    home_team_id: Mapped[int] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    away_team_id: Mapped[int] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    home_score: Mapped[int | None] = mapped_column()
+    away_score: Mapped[int | None] = mapped_column()
+    kickoff_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    finished: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    finished_provisional: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    minutes: Mapped[int] = mapped_column(nullable=False, default=0)
+    home_difficulty: Mapped[int | None] = mapped_column()
+    away_difficulty: Mapped[int | None] = mapped_column()
+    pulse_id: Mapped[int | None] = mapped_column()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class PlayerGameweekStats(Base):
+    __tablename__ = "player_gameweek_stats"
+    __table_args__ = (UniqueConstraint("player_id", "gameweek_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    player_id: Mapped[int] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    gameweek_id: Mapped[int] = mapped_column(
+        ForeignKey("gameweeks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    total_points: Mapped[int] = mapped_column(nullable=False, default=0)
+    minutes: Mapped[int] = mapped_column(nullable=False, default=0)
+    played: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    in_dreamteam: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    starts: Mapped[int] = mapped_column(nullable=False, default=0)
+    goals_scored: Mapped[int] = mapped_column(nullable=False, default=0)
+    assists: Mapped[int] = mapped_column(nullable=False, default=0)
+    clean_sheets: Mapped[int] = mapped_column(nullable=False, default=0)
+    goals_conceded: Mapped[int] = mapped_column(nullable=False, default=0)
+    own_goals: Mapped[int] = mapped_column(nullable=False, default=0)
+    penalties_saved: Mapped[int] = mapped_column(nullable=False, default=0)
+    penalties_missed: Mapped[int] = mapped_column(nullable=False, default=0)
+    yellow_cards: Mapped[int] = mapped_column(nullable=False, default=0)
+    red_cards: Mapped[int] = mapped_column(nullable=False, default=0)
+    saves: Mapped[int] = mapped_column(nullable=False, default=0)
+    bonus: Mapped[int] = mapped_column(nullable=False, default=0)
+    bps: Mapped[int] = mapped_column(nullable=False, default=0)
+    defensive_contribution: Mapped[int] = mapped_column(nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class SquadGameweek(Base):
+    __tablename__ = "squad_gameweeks"
+    __table_args__ = (
+        UniqueConstraint("squad_id", "gameweek_id"),
+        Index("ix_squad_gameweeks_gameweek_points", "gameweek_id", "points"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    squad_id: Mapped[int] = mapped_column(
+        ForeignKey("squads.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    gameweek_id: Mapped[int] = mapped_column(
+        ForeignKey("gameweeks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    active_chip_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chips.id", ondelete="SET NULL")
+    )
+    is_backfilled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bank: Mapped[int] = mapped_column(nullable=False, default=0)
+    squad_value: Mapped[int] = mapped_column(nullable=False, default=0)
+    transfers_made: Mapped[int] = mapped_column(nullable=False, default=0)
+    transfer_cost: Mapped[int] = mapped_column(nullable=False, default=0)
+    free_transfers: Mapped[int] = mapped_column(nullable=False, default=1)
+    free_transfers_after: Mapped[int] = mapped_column(nullable=False, default=1)
+    points: Mapped[int] = mapped_column(nullable=False, default=0)
+    points_on_bench: Mapped[int] = mapped_column(nullable=False, default=0)
+    total_points: Mapped[int] = mapped_column(nullable=False, default=0)
+    gameweek_rank: Mapped[int | None] = mapped_column()
+    overall_rank: Mapped[int | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class SquadGameweekPick(Base):
+    __tablename__ = "squad_gameweek_picks"
+    __table_args__ = (
+        UniqueConstraint("squad_gameweek_id", "player_id"),
+        UniqueConstraint("squad_gameweek_id", "lineup_position"),
+        CheckConstraint("slot >= 1 AND slot <= 15", name="ck_sgw_pick_slot"),
+        CheckConstraint(
+            "lineup_position >= 1 AND lineup_position <= 15",
+            name="ck_sgw_pick_lineup_position",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    squad_gameweek_id: Mapped[int] = mapped_column(
+        ForeignKey("squad_gameweeks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    player_id: Mapped[int] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slot: Mapped[int] = mapped_column(nullable=False)
+    lineup_position: Mapped[int] = mapped_column(nullable=False)
+    purchase_price: Mapped[int] = mapped_column(nullable=False)
+    is_captain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_vice_captain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    multiplier: Mapped[int] = mapped_column(nullable=False, default=0)
+    points: Mapped[int] = mapped_column(nullable=False, default=0)
+    effective_points: Mapped[int] = mapped_column(nullable=False, default=0)
+    was_auto_subbed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class Phase(Base):
     __tablename__ = "phases"
 
