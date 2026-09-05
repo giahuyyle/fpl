@@ -28,6 +28,7 @@ def test_migration_chain_matches_metadata_and_downgrades_cleanly() -> None:
         load_migration("e6f7a8b9c012_add_squads.py"),
         load_migration("f7a8b9c0d123_add_squad_bank.py"),
         load_migration("a8b9c0d1e234_add_squad_profiles.py"),
+        load_migration("b9c0d1e2f345_add_user_chips.py"),
     ]
 
     with engine.begin() as connection:

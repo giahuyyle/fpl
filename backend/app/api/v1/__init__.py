@@ -13,6 +13,7 @@ from app.api.v1.season import router as season_router
 from app.api.v1.squad import router as squad_router
 from app.api.v1.team import router as team_router
 from app.api.v1.user import router as user_router
+from app.api.v1.user_chip import router as user_chip_router
 
 
 api_router = APIRouter()
@@ -28,4 +29,5 @@ api_router.include_router(chip_router)
 api_router.include_router(game_rule_router)
 api_router.include_router(scoring_rule_router)
 api_router.include_router(user_router)
+api_router.include_router(user_chip_router)
 api_router.include_router(squad_router)

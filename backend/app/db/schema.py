@@ -389,6 +389,30 @@ class Chip(Base):
     end_gameweek_id: Mapped[int] = mapped_column(ForeignKey("gameweeks.id"))
 
 
+class UserChip(Base):
+    __tablename__ = "user_chips"
+    __table_args__ = (
+        UniqueConstraint("user_id", "chip_id"),
+        CheckConstraint(
+            "status IN ('available', 'active', 'used')",
+            name="ck_user_chip_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chip_id: Mapped[int] = mapped_column(
+        ForeignKey("chips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="available"
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class GameRule(Base):
     __tablename__ = "game_rules"
 

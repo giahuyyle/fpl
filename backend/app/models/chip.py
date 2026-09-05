@@ -1,4 +1,6 @@
-from app.models.base import ORMResponseModel
+from typing import Literal
+
+from app.models.base import ORMResponseModel, RequestModel
 
 
 class ChipResponse(ORMResponseModel):
@@ -10,3 +12,12 @@ class ChipResponse(ORMResponseModel):
     chip_type: str
     start_gameweek_id: int
     end_gameweek_id: int
+
+
+class UserChipStateResponse(ChipResponse):
+    status: Literal["available", "active", "unavailable"]
+
+
+class ActiveChipUpdate(RequestModel):
+    season_id: int
+    chip_id: int | None

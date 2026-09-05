@@ -12,6 +12,7 @@ from app.services.season_service import SeasonService
 from app.services.squad_service import SquadService
 from app.services.team_service import TeamService
 from app.services.user_service import UserService
+from app.services.user_chip_service import UserChipService
 
 __all__ = [
     "AuthService",
@@ -28,4 +29,5 @@ __all__ = [
     "SquadService",
     "TeamService",
     "UserService",
+    "UserChipService",
 ]

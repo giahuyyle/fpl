@@ -1,4 +1,4 @@
-from app.models.chip import ChipResponse
+from app.models.chip import ActiveChipUpdate, ChipResponse, UserChipStateResponse
 from app.models.game_rule import GameRuleCreate, GameRuleResponse, GameRuleUpdate
 from app.models.gameweek import GameweekResponse
 from app.models.phase import PhaseResponse
@@ -29,6 +29,7 @@ from app.models.user import (
 )
 
 __all__ = [
+    "ActiveChipUpdate",
     "ChipResponse",
     "GameRuleCreate",
     "GameRuleResponse",
@@ -56,4 +57,5 @@ __all__ = [
     "UserCreate",
     "UserResponse",
     "UserUpdate",
+    "UserChipStateResponse",
 ]
