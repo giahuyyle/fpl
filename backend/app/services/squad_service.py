@@ -9,11 +9,14 @@ from app.db.schema import (
     PlayerSeasonStats,
     Position,
     Squad,
+    SquadFavoriteTeam,
     SquadPick,
     Team,
 )
 from app.models.squad import (
+    SquadFavoriteTeamResponse,
     SquadPickResponse,
+    SquadProfileUpdate,
     SquadResponse,
     SquadUpsert,
 )
@@ -37,6 +40,61 @@ class SquadService:
         )
         if squad is None:
             return None
+        return self._response(squad)
+
+    def update_profile(
+        self, user_id: int, payload: SquadProfileUpdate
+    ) -> SquadResponse:
+        rule = self._db.scalar(
+            select(GameRule).where(GameRule.season_id == payload.season_id)
+        )
+        if rule is None:
+            raise SquadValidationError("Game rules are unavailable for this season")
+        if len(payload.favorite_team_ids) != len(set(payload.favorite_team_ids)):
+            raise SquadValidationError("Favorite clubs must be unique")
+
+        favorite_teams = list(
+            self._db.scalars(
+                select(Team).where(
+                    Team.id.in_(payload.favorite_team_ids),
+                    Team.season_id == payload.season_id,
+                )
+            )
+        ) if payload.favorite_team_ids else []
+        if len(favorite_teams) != len(payload.favorite_team_ids):
+            raise SquadValidationError(
+                "Every favorite club must belong to this season"
+            )
+
+        squad = self._db.scalar(
+            select(Squad).where(
+                Squad.user_id == user_id,
+                Squad.season_id == payload.season_id,
+            )
+        )
+        if squad is None:
+            squad = Squad(
+                user_id=user_id,
+                season_id=payload.season_id,
+                name=payload.name,
+                badge_style=payload.badge_style,
+                is_complete=False,
+                bank=rule.budget,
+            )
+            self._db.add(squad)
+            self._db.flush()
+        else:
+            squad.name = payload.name
+            squad.badge_style = payload.badge_style
+            self._db.execute(
+                delete(SquadFavoriteTeam).where(
+                    SquadFavoriteTeam.squad_id == squad.id
+                )
+            )
+
+        for team_id in payload.favorite_team_ids:
+            self._db.add(SquadFavoriteTeam(squad_id=squad.id, team_id=team_id))
+        self._db.flush()
         return self._response(squad)
 
     def upsert_squad(self, user_id: int, payload: SquadUpsert) -> SquadResponse:
@@ -355,17 +413,36 @@ class SquadService:
         player_items = PlayerSearchService(self._db).get_items(
             squad.season_id, [pick.player_id for pick in picks]
         )
+        favorite_teams = list(
+            self._db.scalars(
+                select(Team)
+                .join(SquadFavoriteTeam, SquadFavoriteTeam.team_id == Team.id)
+                .where(SquadFavoriteTeam.squad_id == squad.id)
+                .order_by(Team.name)
+            )
+        )
         spent = sum(pick.purchase_price for pick in picks)
         return SquadResponse(
             id=squad.id,
             user_id=squad.user_id,
             season_id=squad.season_id,
+            name=squad.name,
+            badge_style=squad.badge_style,
             is_complete=squad.is_complete,
             spent=spent,
             budget=rule.budget,
             remaining_budget=squad.bank,
             created_at=squad.created_at,
             updated_at=squad.updated_at,
+            favorite_teams=[
+                SquadFavoriteTeamResponse(
+                    id=team.id,
+                    name=team.name,
+                    short_name=team.short_name,
+                    code=team.code,
+                )
+                for team in favorite_teams
+            ],
             picks=[
                 SquadPickResponse(
                     id=pick.id,

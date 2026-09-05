@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import Field
+from typing import Literal
+
+from pydantic import Field, field_validator
 
 from app.models.base import ORMResponseModel, RequestModel
 from app.models.player_search import PlayerSearchItem
@@ -19,6 +21,33 @@ class SquadUpsert(RequestModel):
     picks: list[SquadPickInput] = Field(default_factory=list, max_length=15)
 
 
+class SquadProfileUpdate(RequestModel):
+    season_id: int
+    name: str = Field(min_length=1, max_length=50)
+    badge_style: Literal[
+        "classic-purple",
+        "pink-purple",
+        "cyan-purple",
+        "green-navy",
+    ]
+    favorite_team_ids: list[int] = Field(default_factory=list, max_length=3)
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Squad name cannot be blank")
+        return value
+
+
+class SquadFavoriteTeamResponse(ORMResponseModel):
+    id: int
+    name: str
+    short_name: str
+    code: int
+
+
 class SquadPickResponse(ORMResponseModel):
     id: int
     slot: int
@@ -34,10 +63,13 @@ class SquadResponse(ORMResponseModel):
     id: int
     user_id: int
     season_id: int
+    name: str
+    badge_style: str
     is_complete: bool
     spent: int
     budget: int
     remaining_budget: int
     created_at: datetime
     updated_at: datetime
+    favorite_teams: list[SquadFavoriteTeamResponse]
     picks: list[SquadPickResponse]

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_session
 from app.auth.dependencies import get_current_user, require_allowed_origin
 from app.db.schema import User
-from app.models.squad import SquadResponse, SquadUpsert
+from app.models.squad import SquadProfileUpdate, SquadResponse, SquadUpsert
 from app.services.squad_service import SquadService, SquadValidationError
 
 
@@ -32,6 +32,25 @@ def put_my_squad(
 ) -> SquadResponse:
     try:
         return SquadService(session).upsert_squad(current_user.id, payload)
+    except SquadValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+
+@router.patch(
+    "/me/profile",
+    response_model=SquadResponse,
+    dependencies=[Depends(require_allowed_origin)],
+)
+def patch_my_squad_profile(
+    payload: SquadProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> SquadResponse:
+    try:
+        return SquadService(session).update_profile(current_user.id, payload)
     except SquadValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

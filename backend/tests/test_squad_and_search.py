@@ -10,7 +10,7 @@ from app.models.player_search import (
     PlayerSearchRequest,
     PlayerStatFilter,
 )
-from app.models.squad import SquadPickInput, SquadUpsert
+from app.models.squad import SquadPickInput, SquadProfileUpdate, SquadUpsert
 from app.services.player_search_service import (
     InvalidSearchFieldError,
     PlayerSearchService,
@@ -520,6 +520,35 @@ def test_search_and_squad_api_routes(
         f"/api/v1/squads/me?season_id={market.season_id}"
     ).json() is None
 
+    profile = client.patch(
+        "/api/v1/squads/me/profile",
+        json={
+            "season_id": market.season_id,
+            "name": "  Matchday Makers  ",
+            "badge_style": "cyan-purple",
+            "favorite_team_ids": market.team_ids[:2],
+        },
+    )
+    assert profile.status_code == 200
+    assert profile.json()["name"] == "Matchday Makers"
+    assert profile.json()["badge_style"] == "cyan-purple"
+    assert [team["id"] for team in profile.json()["favorite_teams"]] == sorted(
+        market.team_ids[:2]
+    )
+    assert profile.json()["remaining_budget"] == 1000
+
+    invalid_profile = client.patch(
+        "/api/v1/squads/me/profile",
+        json={
+            "season_id": market.season_id,
+            "name": "Matchday Makers",
+            "badge_style": "cyan-purple",
+            "favorite_team_ids": [99_999],
+        },
+    )
+    assert invalid_profile.status_code == 422
+    assert "belong to this season" in invalid_profile.json()["detail"]
+
     saved = client.put(
         "/api/v1/squads/me",
         json={
@@ -531,6 +560,8 @@ def test_search_and_squad_api_routes(
         },
     )
     assert saved.status_code == 200
+    assert saved.json()["name"] == "Matchday Makers"
+    assert len(saved.json()["favorite_teams"]) == 2
     assert saved.json()["is_complete"] is True
     assert len(saved.json()["picks"]) == 15
     assert client.put(
@@ -545,3 +576,19 @@ def test_search_and_squad_api_routes(
         headers={"Origin": "https://evil.example"},
         json={"season_id": market.season_id, "picks": []},
     ).status_code == 403
+
+
+def test_squad_profile_rejects_duplicate_favorite_clubs(session: Session) -> None:
+    market = seed_market(session)
+    user = make_user(session)
+
+    with pytest.raises(SquadValidationError, match="must be unique"):
+        SquadService(session).update_profile(
+            user.id,
+            SquadProfileUpdate(
+                season_id=market.season_id,
+                name="Alex XI",
+                badge_style="classic-purple",
+                favorite_team_ids=[market.team_ids[0], market.team_ids[0]],
+            ),
+        )

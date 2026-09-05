@@ -111,6 +111,10 @@ class Squad(Base):
     season_id: Mapped[int] = mapped_column(
         ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    name: Mapped[str] = mapped_column(String(50), nullable=False, default="Squad")
+    badge_style: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="classic-purple"
+    )
     is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     bank: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
@@ -121,6 +125,19 @@ class Squad(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class SquadFavoriteTeam(Base):
+    __tablename__ = "squad_favorite_teams"
+    __table_args__ = (UniqueConstraint("squad_id", "team_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    squad_id: Mapped[int] = mapped_column(
+        ForeignKey("squads.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    team_id: Mapped[int] = mapped_column(
+        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
 
