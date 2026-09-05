@@ -250,6 +250,12 @@ describe('SquadPage', () => {
     expect(screen.queryByRole('complementary', { name: 'Player search' })).not.toBeInTheDocument()
     expect(within(savedPitch).getAllByText(/Player/)).toHaveLength(15)
     expect(screen.getByText('Substitutes')).toBeInTheDocument()
+    const cardClasses = Array.from(
+      savedPitch.querySelectorAll('img[src^="/kits/"]'),
+      (kit) => kit.parentElement?.parentElement?.className,
+    )
+    expect(cardClasses).toHaveLength(15)
+    expect(new Set(cardClasses)).toHaveProperty('size', 1)
     await user.click(screen.getByRole('button', { name: 'Home' }))
     expect(window.location.pathname).toBe('/')
     window.history.replaceState({}, '', '/squad')

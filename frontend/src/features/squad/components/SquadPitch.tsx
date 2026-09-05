@@ -42,10 +42,9 @@ function roleFor(slot: number, captainSlot: number | null, viceCaptainSlot: numb
   return undefined
 }
 
-function PlayerCard({ captainSlot, clickable, compact = false, pending, player, seasonName, slot, viceCaptainSlot, onClick }: {
+function PlayerCard({ captainSlot, clickable, pending, player, seasonName, slot, viceCaptainSlot, onClick }: {
   captainSlot: number | null
   clickable: boolean
-  compact?: boolean
   pending: boolean
   player: Player
   seasonName: string
@@ -53,7 +52,7 @@ function PlayerCard({ captainSlot, clickable, compact = false, pending, player, 
   viceCaptainSlot: number | null
   onClick: (slot: number) => void
 }) {
-  const token = <PlayerToken compact={compact} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} />
+  const token = <PlayerToken player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} />
   if (!clickable) return token
   return <div className="relative mx-auto w-full max-w-[112px] min-w-0">
     {pending && <span className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-pl-pink px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] text-white shadow-md">Swap</span>}
@@ -105,7 +104,7 @@ export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, ca
     <div className="border-t-4 border-pl-purple bg-[#d9f5e5] px-3 py-5 tablet:px-6">
       <p className="mb-4 text-center text-[9px] font-black uppercase tracking-[.18em] text-pl-purple">Substitutes</p>
       <div className="mx-auto grid max-w-[520px] grid-cols-4 items-end gap-2 tablet:gap-4">
-        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} compact key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
+        {bench.map(({ player, slot }) => <PlayerCard captainSlot={captainSlot} clickable={clickable} key={slot} onClick={onPlayerClick} pending={substituteFromSlot === slot} player={player} seasonName={seasonName} slot={slot} viceCaptainSlot={viceCaptainSlot} />)}
       </div>
     </div>
   </section>
