@@ -1,16 +1,17 @@
-import type { Chip } from '../api/squadApi'
+import type { UserChipState } from '../api/squadApi'
 import type { SquadMode } from './SquadPitch'
 import { price } from '../squadConfig'
 
 type Props = {
   budget: number
-  chips: Chip[]
+  chipUpdating?: boolean
+  chips: UserChipState[]
   deadline: string | null
   mode: SquadMode
   pickCount: number
+  onChipChange?: (chip: UserChipState) => void
   squadName?: string
   squadValue: number
-  activeChip?: string | null
 }
 
 const chipDefinitions = [
@@ -20,7 +21,7 @@ const chipDefinitions = [
   { key: 'freehit', label: 'Free Hit', mark: 'F' },
 ]
 
-function chipKey(chip: Chip) {
+function chipKey(chip: UserChipState) {
   const value = `${chip.name} ${chip.chip_type}`.toLowerCase().replaceAll(/[^a-z0-9]/g, '')
   if (value.includes('bboost') || value.includes('benchboost')) return 'bboost'
   if (value.includes('3xc') || value.includes('triplecaptain')) return '3xc'
@@ -29,10 +30,13 @@ function chipKey(chip: Chip) {
   return null
 }
 
-export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, mode, pickCount, squadName = 'Squad', squadValue }: Props) {
+export function SquadRouteHeader({ budget, chipUpdating = false, chips, deadline, mode, onChipChange, pickCount, squadName = 'Squad', squadValue }: Props) {
   const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : squadName
-  const ingestedChipKeys = new Set(chips.flatMap((chip) => chipKey(chip) ? [chipKey(chip)!] : []))
-  const visibleChips = chipDefinitions.filter((chip) => chips.length === 0 || ingestedChipKeys.has(chip.key))
+  const visibleChips = chips.flatMap((chip) => {
+    const key = chipKey(chip)
+    const definition = chipDefinitions.find((item) => item.key === key)
+    return definition ? [{ ...definition, chip }] : []
+  })
 
   return <section aria-label={`${title} summary`} className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-sm">
     <div className={`flex flex-col gap-5 px-5 py-5 tablet:px-7 tablet:py-6 ${mode === 'transfers' ? 'wide:flex-row wide:items-center wide:justify-between' : ''}`}>
@@ -47,13 +51,13 @@ export function SquadRouteHeader({ activeChip = null, budget, chips, deadline, m
       </dl>}
     </div>
     {mode === 'pick-team' && <div className="grid gap-px border-t border-[#e7e0e8] bg-[#e7e0e8] tablet:grid-cols-4">
-      {visibleChips.map((chip) => {
-        const status = activeChip ? activeChip === chip.key ? 'Active' : 'Unavailable' : 'Available'
-        return <div className="bg-white px-4 py-5 text-center" key={chip.key}>
-          <span className={`mx-auto grid size-10 place-items-center rounded-full font-display text-xs font-black ${status === 'Active' ? 'bg-pl-purple text-pl-green' : status === 'Available' ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#f0ecf1] text-muted'}`}>{chip.mark}</span>
-          <strong className="mt-2 block text-xs text-pl-purple">{chip.label}</strong>
+      {visibleChips.map(({ chip, label, mark }) => {
+        const status = chip.status[0].toUpperCase() + chip.status.slice(1)
+        return <button aria-label={chip.status === 'active' ? `Cancel ${label}` : `Activate ${label}`} aria-pressed={chip.status === 'active'} className="bg-white px-4 py-5 text-center disabled:cursor-not-allowed" disabled={chipUpdating || chip.status === 'unavailable'} key={chip.id} onClick={() => onChipChange?.(chip)} type="button">
+          <span className={`mx-auto grid size-10 place-items-center rounded-full font-display text-xs font-black ${status === 'Active' ? 'bg-pl-purple text-pl-green' : status === 'Available' ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#f0ecf1] text-muted'}`}>{mark}</span>
+          <strong className="mt-2 block text-xs text-pl-purple">{label}</strong>
           <small className={`mt-1 block text-[9px] font-black uppercase tracking-[.08em] ${status === 'Active' ? 'text-pl-pink' : status === 'Available' ? 'text-[#0b8f55]' : 'text-muted'}`}>{status}</small>
-        </div>
+        </button>
       })}
     </div>}
     {mode === 'view' && <dl className="grid grid-cols-2 gap-px border-t border-[#e7e0e8] bg-[#e7e0e8] tablet:grid-cols-5">

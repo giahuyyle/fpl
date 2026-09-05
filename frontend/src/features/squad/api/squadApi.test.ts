@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthenticationRequiredError } from '../../auth/api/session'
-import { loadSquadPageData, saveSquad, searchPlayers } from './squadApi'
+import { loadSquadPageData, saveSquad, searchPlayers, setActiveChip } from './squadApi'
 
 function response(body: unknown, status = 200) {
   return Promise.resolve({
@@ -20,7 +20,7 @@ describe('squad API', () => {
       if (url.startsWith('/api/v1/teams')) return response([{ id: 1 }])
       if (url === '/api/v1/positions') return response([{ id: 2 }])
       if (url.startsWith('/api/v1/gameweeks')) return response([{ id: 3 }])
-      if (url.startsWith('/api/v1/chips')) return response([{ id: 4, name: 'wildcard' }])
+      if (url.startsWith('/api/v1/users/me/chips')) return response([{ id: 4, name: 'wildcard', status: 'available' }])
       return response(null)
     }))
 
@@ -74,6 +74,18 @@ describe('squad API', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/squads/me', expect.objectContaining({
       method: 'PUT',
       body: JSON.stringify({ season_id: 2, picks: [{ slot: 1, player_id: 9 }] }),
+    }))
+  })
+
+  it('persists the active chip selection', async () => {
+    const states = [{ id: 4, name: 'wildcard', status: 'active' }]
+    const fetchMock = vi.fn(() => response(states))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(setActiveChip(2, 4)).resolves.toEqual(states)
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me/chips/active', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ season_id: 2, chip_id: 4 }),
     }))
   })
 })

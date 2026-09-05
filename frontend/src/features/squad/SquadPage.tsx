@@ -3,8 +3,8 @@ import { navigate } from '../../shared/lib/navigation'
 import { Brand } from '../../shared/ui/Brand'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
-import { loadSquadPageData, saveSquad, searchPlayers, updateSquadProfile } from './api/squadApi'
-import type { Chip, Gameweek, Player, Position, Season, Squad, SquadProfilePayload, Team } from './api/squadApi'
+import { loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
+import type { Gameweek, Player, Position, Season, Squad, SquadProfilePayload, Team, UserChipState } from './api/squadApi'
 import { FixturesPanel } from './components/FixturesPanel'
 import { PlayerMarket } from './components/PlayerMarket'
 import type { MarketFilters } from './components/PlayerMarket'
@@ -32,6 +32,14 @@ function slotCode(slot: number): Position['code'] {
   if (slot <= 7) return 'DEF'
   if (slot <= 12) return 'MID'
   return 'FWD'
+}
+
+function chipLabel(chip: UserChipState) {
+  if (chip.name === 'bboost') return 'Bench Boost'
+  if (chip.name === '3xc') return 'Triple Captain'
+  if (chip.name === 'freehit') return 'Free Hit'
+  if (chip.name === 'wildcard') return 'Wildcard'
+  return chip.name
 }
 
 function defaultLineupOrder(picks: PickMap) {
@@ -75,7 +83,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [teams, setTeams] = useState<Team[]>([])
   const [positions, setPositions] = useState<Position[]>([])
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([])
-  const [chips, setChips] = useState<Chip[]>([])
+  const [chips, setChips] = useState<UserChipState[]>([])
   const [squad, setSquad] = useState<Squad | null>(null)
   const [picks, setPicks] = useState<PickMap>({})
   const [lineupOrder, setLineupOrder] = useState<number[]>([])
@@ -94,6 +102,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [saving, setSaving] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
+  const [chipUpdating, setChipUpdating] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -368,12 +377,35 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
     }
   }
 
+  async function changeChip(chip: UserChipState) {
+    if (!season) return
+    setChipUpdating(true)
+    setMessage('')
+    try {
+      const updated = await setActiveChip(
+        season.id,
+        chip.status === 'active' ? null : chip.id,
+      )
+      setChips(updated)
+      setMessage(
+        chip.status === 'active'
+          ? `${chipLabel(chip)} deactivated.`
+          : `${chipLabel(chip)} activated.`,
+      )
+    } catch (error) {
+      if (error instanceof AuthenticationRequiredError) navigate('/login')
+      else setMessage(error instanceof Error ? error.message : 'Unable to update chip.')
+    } finally {
+      setChipUpdating(false)
+    }
+  }
+
   if (loading) return <main className="grid min-h-screen place-items-center bg-paper text-pl-purple"><p role="status">Loading your squad…</p></main>
 
   const transferNeedsReplacement = mode === 'transfers' && Boolean(squad?.is_complete) && pickCount < 15
   const overBudget = mode === 'transfers' && draftBudget < 0
   const helper = substituteFromSlot ? `Choose a starter or substitute to swap with ${picks[substituteFromSlot]?.web_name}.` : mode === 'pick-team' ? 'Select a player to make them captain, vice captain, or substitute them.' : mode === 'transfers' ? `Select a ${selectedPosition?.name.toLowerCase() ?? 'player'} slot or open a player’s transfer menu.` : 'Your saved starting XI and four substitutes.'
-  const successfulMessage = ['created', 'saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
+  const successfulMessage = ['activated', 'created', 'deactivated', 'saved', 'restored', 'staged'].some((word) => message.toLowerCase().includes(word))
   const nextGameweek = gameweeks.find((gameweek) => !gameweek.finished) ?? gameweeks.at(-1)
   const deadline = nextGameweek ? new Intl.DateTimeFormat(undefined, {
     day: 'numeric',
@@ -401,7 +433,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader budget={draftBudget} chips={chips} deadline={deadline} mode={mode} pickCount={pickCount} squadName={squad?.name} squadValue={spent} />
+          <SquadRouteHeader budget={draftBudget} chipUpdating={chipUpdating} chips={chips} deadline={deadline} mode={mode} onChipChange={changeChip} pickCount={pickCount} squadName={squad?.name} squadValue={spent} />
           <SquadPitch captainSlot={captainSlot} lineupOrder={lineupOrder} mode={mode} onEmptySlot={handleEmptySlot} onPlayerClick={handlePlayerClick} picks={picks} positions={positions} selectedSlot={selectedSlot} substituteFromSlot={substituteFromSlot} viceCaptainSlot={viceCaptainSlot} />
           <FixturesPanel gameweeks={gameweeks} />
         </div>

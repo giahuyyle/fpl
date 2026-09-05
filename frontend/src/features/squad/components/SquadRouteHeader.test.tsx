@@ -1,10 +1,17 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SquadRouteHeader } from './SquadRouteHeader'
+
+const chips = [
+  { id: 1, fpl_id: 1, season_id: 1, name: 'bboost', number: 1, chip_type: 'team', start_gameweek_id: 1, end_gameweek_id: 19, status: 'available' as const },
+  { id: 2, fpl_id: 2, season_id: 1, name: '3xc', number: 1, chip_type: 'team', start_gameweek_id: 1, end_gameweek_id: 19, status: 'available' as const },
+  { id: 3, fpl_id: 3, season_id: 1, name: 'wildcard', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 19, status: 'available' as const },
+  { id: 4, fpl_id: 4, season_id: 1, name: 'freehit', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 19, status: 'available' as const },
+]
 
 const props = {
   budget: 1000,
-  chips: [],
+  chips,
   deadline: 'Sat, 5 Sep, 01:30',
   mode: 'pick-team' as const,
   pickCount: 15,
@@ -18,9 +25,21 @@ describe('SquadRouteHeader', () => {
   })
 
   it('shows one active chip and makes the others unavailable', () => {
-    render(<SquadRouteHeader {...props} activeChip="wildcard" />)
+    render(<SquadRouteHeader {...props} chips={chips.map((chip) => ({ ...chip, status: chip.name === 'wildcard' ? 'active' as const : 'unavailable' as const }))} />)
     expect(within(screen.getByText('Wildcard').parentElement!).getByText('Active')).toBeInTheDocument()
     expect(screen.getAllByText('Unavailable')).toHaveLength(3)
+  })
+
+  it('requests activation and cancellation from the chip controls', () => {
+    const onChipChange = vi.fn()
+    const { rerender } = render(<SquadRouteHeader {...props} onChipChange={onChipChange} />)
+    screen.getByRole('button', { name: 'Activate Wildcard' }).click()
+    expect(onChipChange).toHaveBeenCalledWith(chips[2])
+
+    const active = chips.map((chip) => ({ ...chip, status: chip.name === 'wildcard' ? 'active' as const : 'unavailable' as const }))
+    rerender(<SquadRouteHeader {...props} chips={active} onChipChange={onChipChange} />)
+    screen.getByRole('button', { name: 'Cancel Wildcard' }).click()
+    expect(onChipChange).toHaveBeenLastCalledWith(active[2])
   })
 
   it('labels the remaining transfer funds as budget', () => {

@@ -75,6 +75,12 @@ function squadFrom(players: Player[], complete: boolean): Squad {
 }
 
 function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = [allPlayers[0]]) {
+  let chipStates = [
+    { id: 1, fpl_id: 1, season_id: 1, name: 'bboost', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
+    { id: 2, fpl_id: 2, season_id: 1, name: '3xc', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
+    { id: 3, fpl_id: 3, season_id: 1, name: 'wildcard', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
+    { id: 4, fpl_id: 4, season_id: 1, name: 'freehit', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38, status: 'available' },
+  ]
   return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url === '/api/v1/seasons/current') return response({ id: 1, name: '2026/27' })
@@ -85,12 +91,15 @@ function fetchRouter(initialSquad: Squad | null = null, searchItems: Player[] = 
       id: 1, name: 'Gameweek 1', number: 1,
       deadline_time: '2026-09-01T12:00:00Z', finished: false,
     }])
-    if (url.startsWith('/api/v1/chips')) return response([
-      { id: 1, fpl_id: 1, season_id: 1, name: 'bboost', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38 },
-      { id: 2, fpl_id: 2, season_id: 1, name: '3xc', number: 1, chip_type: 'single', start_gameweek_id: 1, end_gameweek_id: 38 },
-      { id: 3, fpl_id: 3, season_id: 1, name: 'wildcard', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38 },
-      { id: 4, fpl_id: 4, season_id: 1, name: 'freehit', number: 1, chip_type: 'transfer', start_gameweek_id: 1, end_gameweek_id: 38 },
-    ])
+    if (url.startsWith('/api/v1/users/me/chips') && (!init?.method || init.method === 'GET')) return response(chipStates)
+    if (url === '/api/v1/users/me/chips/active' && init?.method === 'PUT') {
+      const body = JSON.parse(String(init.body)) as { chip_id: number | null }
+      chipStates = chipStates.map((chip) => ({
+        ...chip,
+        status: body.chip_id === null ? 'available' : chip.id === body.chip_id ? 'active' : 'unavailable',
+      }))
+      return response(chipStates)
+    }
     if (url.startsWith('/api/v1/squads/me') && (!init?.method || init.method === 'GET')) return response(initialSquad)
     if (url === '/api/v1/players/search') return response({ total: searchItems.length, items: searchItems })
     if (url === '/api/v1/squads/me' && init?.method === 'PUT') {
@@ -248,6 +257,13 @@ describe('SquadPage', () => {
     expect(window.location.pathname).toBe('/squad/pick')
     expect(screen.getByRole('region', { name: 'Pick Team summary' })).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Pick Team summary' })).getAllByText('Available')).toHaveLength(4)
+    await user.click(screen.getByRole('button', { name: 'Activate Wildcard' }))
+    expect(await screen.findByText('Wildcard activated.')).toHaveClass('text-[#05633d]')
+    expect(screen.getByRole('button', { name: 'Cancel Wildcard' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByText('Unavailable')).toHaveLength(3)
+    await user.click(screen.getByRole('button', { name: 'Cancel Wildcard' }))
+    expect(await screen.findByText('Wildcard deactivated.')).toHaveClass('text-[#05633d]')
+    expect(screen.getAllByText('Available')).toHaveLength(4)
     const editPitch = screen.getByRole('region', { name: 'Edit starting XI and substitutes' })
     expect(within(editPitch).getAllByRole('button', { name: /^Open actions/ })).toHaveLength(15)
     expect(within(editPitch).getByText('Substitutes')).toBeInTheDocument()

@@ -18,7 +18,7 @@ function squadDataResponse(input: RequestInfo | URL) {
   if (url.startsWith('/api/v1/teams')) return jsonResponse([])
   if (url === '/api/v1/positions') return jsonResponse([])
   if (url.startsWith('/api/v1/gameweeks')) return jsonResponse([])
-  if (url.startsWith('/api/v1/chips')) return jsonResponse([])
+  if (url.startsWith('/api/v1/users/me/chips')) return jsonResponse([])
   if (url.startsWith('/api/v1/squads/me')) return jsonResponse(null)
   if (url === '/api/v1/players/search') return jsonResponse({ total: 0, items: [] })
   return null

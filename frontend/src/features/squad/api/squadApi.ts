@@ -40,6 +40,10 @@ export type Chip = {
   end_gameweek_id: number
 }
 
+export type UserChipState = Chip & {
+  status: 'available' | 'active' | 'unavailable'
+}
+
 export type PlayerStats = {
   minutes: number
   starts: number
@@ -194,10 +198,25 @@ export async function loadSquadPageData() {
     getJson<Team[]>(`/api/v1/teams?season_id=${season.id}`),
     getJson<Position[]>('/api/v1/positions'),
     getJson<Gameweek[]>(`/api/v1/gameweeks?season_id=${season.id}`),
-    getJson<Chip[]>(`/api/v1/chips?season_id=${season.id}`),
+    getJson<UserChipState[]>(`/api/v1/users/me/chips?season_id=${season.id}`),
     getJson<Squad | null>(`/api/v1/squads/me?season_id=${season.id}`),
   ])
   return { season, teams, positions, gameweeks, chips, squad }
+}
+
+export async function setActiveChip(
+  seasonId: number,
+  chipId: number | null,
+): Promise<UserChipState[]> {
+  const response = await fetch('/api/v1/users/me/chips/active', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ season_id: seasonId, chip_id: chipId }),
+  })
+  if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
+  if (!response.ok) throw new Error(await responseError(response, 'Unable to update chip.'))
+  return await response.json() as UserChipState[]
 }
 
 export async function searchPlayers(payload: SearchPayload): Promise<PlayerSearchResponse> {
