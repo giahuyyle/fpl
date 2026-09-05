@@ -77,10 +77,10 @@ Run these commands from the repository root.
 docker compose up -d --build
 ```
 
-This starts PostgreSQL, the FastAPI backend, and the Vite frontend. The backend
-waits for PostgreSQL, applies Alembic migrations, and starts with automatic
-reload. The frontend starts after the backend health check passes and supports
-hot module replacement.
+This starts PostgreSQL, the FastAPI backend, the FPL sync worker, and the Vite
+frontend. The backend waits for PostgreSQL, applies Alembic migrations, and
+starts with automatic reload. The frontend starts after the backend health
+check passes and supports hot module replacement.
 
 Check that the API is running:
 
@@ -117,6 +117,14 @@ The ingestion runs in one transaction and creates or updates:
 
 The pipeline is idempotent: running it again updates existing records instead
 of inserting duplicates.
+
+The `fpl-sync` worker then keeps the official bootstrap, fixture, and live
+gameweek feeds current. It stores deadline squad snapshots and recalculates
+points from the official per-player event totals, including captaincy, chips,
+automatic substitutions, free transfers, and transfer hits. GW1 and GW2 are
+created as explicitly marked backfilled snapshots from the current saved squad
+so their point calculations can be checked; they are not claimed as historical
+records of the user's actual lineups.
 
 ### 3. Sync the season's kit assets
 
@@ -204,6 +212,8 @@ All resource routes use the `/api/v1` prefix.
 | Players | `/api/v1/players?season_id=1` |
 | Player season stats | `/api/v1/player-season-stats?season_id=1` |
 | Gameweeks | `/api/v1/gameweeks?season_id=1` |
+| Fixtures | `/api/v1/fixtures?season_id=1&gameweek_number=1` |
+| My points history | `/api/v1/squads/me/points/history?season_id=1` |
 | Phases | `/api/v1/phases?season_id=1` |
 | Chips | `/api/v1/chips?season_id=1` |
 | Game rules | `/api/v1/game-rules/by-season/1` |

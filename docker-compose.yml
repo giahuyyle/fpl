@@ -55,6 +55,24 @@ services:
       sh -c "python -m alembic upgrade head &&
              uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
+  fpl-sync:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    init: true
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: python -m app.jobs.fpl_live_sync
+
   frontend:
     build:
       context: ./frontend
