@@ -26,6 +26,7 @@ class PlayerStatFilter(RequestModel):
 
 class PlayerSearchRequest(RequestModel):
     season_id: int
+    selectable_only: bool = True
     query: str | None = Field(default=None, max_length=100)
     team_ids: list[int] = Field(default_factory=list)
     position_ids: list[int] = Field(default_factory=list)

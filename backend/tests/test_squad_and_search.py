@@ -681,3 +681,26 @@ def test_squad_service_rejects_a_stale_gameweek_submission(
                 picks=[],
             ),
         )
+
+
+def test_directory_last_name_order_and_pagination(session: Session) -> None:
+    market = seed_market(session)
+    players = [session.get(Player, player_id) for player_id in market.all_player_ids]
+    for index, player in enumerate(players):
+        player.last_name = 'Zulu'
+        player.first_name = f'Name{index:02}'
+    players[0].last_name = 'aarons'
+    players[1].last_name = 'Abbott'
+    players[1].first_name = 'Zach'
+    players[2].last_name = 'Abbott'
+    players[2].first_name = 'George'
+    players[2].can_select = False
+    session.flush()
+    service = PlayerSearchService(session)
+    first = service.search(PlayerSearchRequest(season_id=market.season_id, sort_by='last_name', sort_direction='asc', selectable_only=False, limit=2))
+    second = service.search(PlayerSearchRequest(season_id=market.season_id, sort_by='last_name', sort_direction='asc', selectable_only=False, limit=2, offset=2))
+    assert [item.id for item in first.items] == [players[0].id, players[2].id]
+    assert second.items[0].id == players[1].id
+    assert first.total == len(players)
+    fantasy = service.search(PlayerSearchRequest(season_id=market.season_id))
+    assert players[2].id not in [item.id for item in fantasy.items]

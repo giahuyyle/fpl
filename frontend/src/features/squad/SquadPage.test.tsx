@@ -334,7 +334,7 @@ describe('SquadPage', () => {
     expect(within(viewDrawer).queryByRole('button', { name: 'Make captain' })).not.toBeInTheDocument()
     expect(within(viewDrawer).queryByRole('button', { name: 'Substitute' })).not.toBeInTheDocument()
     await user.click(within(viewDrawer).getByRole('button', { name: 'Close player actions' }))
-    await user.click(screen.getByRole('button', { name: 'Home' }))
+    await user.click(screen.getByRole('button', { name: 'Fantasy PL home' }))
     expect(window.location.pathname).toBe('/')
     window.history.replaceState({}, '', '/squad')
     await user.click(screen.getByRole('button', { name: 'Account' }))

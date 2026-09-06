@@ -25,6 +25,7 @@ STAT_FIELDS = {
 SORT_FIELDS = {
     **STAT_FIELDS,
     "web_name": Player.web_name,
+    "last_name": func.lower(Player.last_name),
     "team": Team.name,
     "position": Position.fpl_id,
 }
@@ -38,9 +39,10 @@ class PlayerSearchService:
         conditions = [
             Team.season_id == payload.season_id,
             PlayerSeasonStats.season_id == payload.season_id,
-            Player.can_select.is_(True),
             Player.removed.is_(False),
         ]
+        if payload.selectable_only:
+            conditions.append(Player.can_select.is_(True))
         if payload.query and payload.query.strip():
             pattern = f"%{payload.query.strip()}%"
             conditions.append(
@@ -83,7 +85,7 @@ class PlayerSearchService:
             .where(*conditions)
         )
         rows = self._db.execute(
-            base.order_by(direction(), Player.web_name, Player.id)
+            base.order_by(direction(), func.lower(Player.first_name) if payload.sort_by == "last_name" else Player.web_name, Player.id)
             .offset(payload.offset)
             .limit(payload.limit)
         ).all()

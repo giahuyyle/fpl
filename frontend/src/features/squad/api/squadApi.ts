@@ -206,6 +206,7 @@ export type StatFilter = {
 }
 
 export type SearchPayload = {
+  selectable_only?: boolean
   season_id: number
   query?: string
   team_ids?: number[]

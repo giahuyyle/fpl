@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { navigate } from '../../shared/lib/navigation'
-import { Brand } from '../../shared/ui/Brand'
+import { SiteHeader } from '../../shared/ui/SiteHeader'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
 import { loadSquadLiveData, loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
@@ -542,9 +542,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }).format(new Date(editableGameweek.deadline_time)) : null
 
   return <main className="min-h-screen bg-[#f4f1f5] pb-16 text-ink">
-    <header className="bg-pl-purple text-white">
-      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 tablet:px-8"><Brand light /><nav className="flex gap-2"><button className="rounded-full border border-white/25 px-4 py-2 text-[10px] font-bold" onClick={() => navigate('/')} type="button">Home</button><button className="rounded-full bg-white px-4 py-2 text-[10px] font-bold text-pl-purple" onClick={() => navigate('/account')} type="button">Account</button></nav></div>
-    </header>
+    <SiteHeader />
 
     <div className="mx-auto max-w-[1440px] px-3 pt-6 tablet:px-8 tablet:pt-8">
       {message && <p className={`mb-5 rounded-xl px-4 py-3 text-xs font-bold ${successfulMessage ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#fff1f5] text-[#8b0030]'}`} role="status">{message}</p>}

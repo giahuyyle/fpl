@@ -1,0 +1,67 @@
+.league-page { min-height: 100vh; background: #f8f7f9; color: #37003c; }
+.league-container { max-width: 1440px; padding: 0 36px; margin: auto; }
+.league-hero { background: linear-gradient(110deg, #933aff, #557bff 48%, #04e5f2); color: white; padding: 42px 0 44px; }
+.league-hero p { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.league-hero h1 { font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -.025em; }
+.league-content { padding-top: 32px; padding-bottom: 60px; }
+.league-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 24px; }
+.league-filters input, .league-filters select, .league-filters button, .season-label { border: 1px solid #cfc1d3; border-radius: 9px; padding: 10px 14px; font-size: 14px; min-height: 42px; background: transparent; }
+.league-filters input { min-width: 260px; padding: 13px 16px; margin-right: 6px; }
+.league-filters select { max-width: 100%; }
+.league-filters button:hover:enabled { background: #eee6f0; }
+.league-filters button:disabled { opacity: .45; cursor: default; }
+.season-label { border-color: transparent; font-weight: 700; }
+.league-card { background: white; border-radius: 18px; overflow: hidden; }
+.league-table-scroll { overflow-x: auto; }
+.league-card table { border-collapse: collapse; width: 100%; text-align: left; font-size: 14px; }
+.league-card thead { color: #8c7193; font-size: 12px; }
+.league-card th, .league-card td { padding: 18px 16px; }
+.league-card tbody tr + tr { border-top: 1px solid #eee8f0; }
+.league-card tbody tr:hover { background: #fcfafd; }
+.players-table { min-width: 590px; }
+.players-table th:first-child { width: 43%; }
+.player-name, .club-name { display: flex; align-items: center; gap: 14px; }
+.player-portrait { width: 48px; height: 52px; object-fit: contain; border-radius: 10px; background: #f4eff6; }
+.club-name img { width: 30px; height: 34px; object-fit: contain; flex-shrink: 0; }
+.directory-summary { display: flex; justify-content: space-between; margin-bottom: 12px; color: #876b8e; font-size: 12px; }
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; font-size: 13px; }
+.pagination div { display: flex; align-items: center; gap: 16px; }
+.pagination button, .league-message button { border: 1px solid #d8cbdc; border-radius: 8px; padding: 10px 16px; background: white; }
+.pagination button:hover:enabled { background: #37003c; color: white; }
+.pagination button:disabled { opacity: .35; cursor: default; }
+.league-message { padding: 64px 24px; text-align: center; }
+.league-message h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.league-message button { display: block; margin: 20px auto 0; }
+.standings-table { min-width: 1000px; }
+.standings-table th:not(:nth-child(2)), .standings-table td { text-align: center; }
+.standings-table th:nth-child(2) { min-width: 240px; }
+.standings-table td, .standings-table th { padding: 20px 12px; }
+.form { display: flex; gap: 6px; justify-content: center; min-width: 124px; }
+.form span { border-radius: 50%; width: 21px; height: 21px; display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+.form-W { color: white; background: #2da957; }.form-D { background: #ebe4ed; }.form-L { color: white; background: #d72d50; }
+.next-club { width: 28px; height: 30px; object-fit: contain; margin: auto; }
+.table-note { font-size: 12px; color: #846e8a; margin-top: 16px; }
+.league-matches > section { margin-top: 0; border-radius: 18px; box-shadow: none; }
+.league-matches article { min-height: 70px; font-size: 14px; max-width: 1000px; margin: auto; }
+@media(max-width: 800px) {
+  .league-container { padding-left: 20px; padding-right: 20px; }
+  .league-hero { padding: 30px 0; }
+  .league-content { padding-top: 24px; }
+  .league-filters { gap: 8px; }.league-filters input { width: 100%; min-width: 0; margin: 0; }
+  .league-filters select { flex: 1; min-width: 120px; }
+  .pagination { align-items: flex-start; flex-direction: column; }.pagination div { width: 100%; justify-content: space-between; }
+  .league-matches article { font-size: 11px; }
+}
+
+.mobile-player-club { display: none; }
+@media(max-width: 540px) {
+  .players-table { min-width: 0; table-layout: fixed; }
+  .players-table th:first-child { width: 68%; }
+  .players-table th:nth-child(2), .players-table td:nth-child(2) { display: none; }
+  .players-table th, .players-table td { padding: 16px 12px; font-size: 12px; }
+  .player-name { gap: 10px; }
+  .player-name > span { min-width: 0; overflow-wrap: anywhere; }
+  .player-portrait { width: 38px; height: 46px; flex-shrink: 0; }
+  .mobile-player-club { display: block; margin-top: 4px; color: #846e8a; font-size: 11px; }
+  .league-filters select { flex-basis: 40%; }
+}
