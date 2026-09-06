@@ -11,6 +11,8 @@ node_modules/
 dist/
 frontend/public/kits/*
 !frontend/public/kits/README.md
+frontend/public/crests/*
+!frontend/public/crests/README.md
 
 # Env
 .env

@@ -224,7 +224,7 @@ describe('SquadPage', () => {
     const resultButton = resultName.closest('button')!
     expect(screen.getByRole('img', { name: 'Club One crest' })).toHaveAttribute(
       'src',
-      'https://resources.premierleague.com/premierleague/badges/50/t10.png',
+      '/crests/t10.png',
     )
     expect(within(resultButton).getByText('Club One')).toBeInTheDocument()
     await waitFor(() => {

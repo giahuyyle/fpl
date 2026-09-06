@@ -81,7 +81,7 @@ export function remainingDraftBudget(
 }
 
 export function teamBadge(code: number) {
-  return `https://resources.premierleague.com/premierleague/badges/50/t${code}.png`
+  return `/crests/t${code}.png`
 }
 
 export function playerPhoto(photo: string | null) {
