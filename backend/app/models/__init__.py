@@ -21,6 +21,7 @@ from app.models.squad import SquadResponse, SquadUpsert
 from app.models.team import TeamResponse
 
 from app.models.user import (
+    AccountSettings,
     LoginRequest,
     PasswordChange,
     UserCreate,
@@ -29,6 +30,7 @@ from app.models.user import (
 )
 
 __all__ = [
+    "AccountSettings",
     "ActiveChipUpdate",
     "ChipResponse",
     "GameRuleCreate",

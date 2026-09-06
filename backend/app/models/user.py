@@ -1,7 +1,14 @@
-from datetime import datetime
-from typing import Annotated, Self
+from datetime import date, datetime
+from typing import Annotated, Literal, Self
 
-from pydantic import EmailStr, Field, SecretStr, StringConstraints, model_validator
+from pydantic import (
+    EmailStr,
+    Field,
+    SecretStr,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from app.models.base import ORMResponseModel, RequestModel
 
@@ -30,7 +37,33 @@ class LoginRequest(RequestModel):
     remember_me: bool = False
 
 
+class AccountSettings(RequestModel):
+    first_name: str = Field(default="", max_length=100)
+    last_name: str = Field(default="", max_length=100)
+    date_of_birth: date | None = None
+    gender: Literal[
+        "", "male", "female", "non-binary", "prefer-not-to-say"
+    ] = ""
+    country: str = Field(default="", max_length=100)
+    nationality: str = Field(default="", max_length=100)
+    different_nationality: bool = False
+    email_news: bool = False
+    email_fantasy: bool = False
+    appearance: Literal["light", "dark", "system"] = "light"
+    interests: list[
+        Literal["matches", "fantasy", "players", "clubs"]
+    ] = Field(default_factory=list, max_length=4)
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def reject_future_birth_date(cls, value: date | None) -> date | None:
+        if value is not None and value > date.today():
+            raise ValueError("date of birth cannot be in the future")
+        return value
+
+
 class UserUpdate(RequestModel):
+    settings: AccountSettings | None = None
     username: Username | None = None
     email: EmailStr | None = None
 
@@ -58,6 +91,7 @@ class PasswordChange(RequestModel):
 
 
 class UserResponse(ORMResponseModel):
+    settings: AccountSettings = Field(default_factory=AccountSettings)
     id: int
     username: str
     email: EmailStr

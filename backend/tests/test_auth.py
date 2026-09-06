@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,7 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import config
 from app.db.schema import AuthLoginFailure, AuthSession, User
-from app.models import LoginRequest, PasswordChange, UserCreate, UserResponse, UserUpdate
+from app.models import (
+    AccountSettings,
+    LoginRequest,
+    PasswordChange,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from app.services.auth_service import (
     AuthService,
     InvalidCredentialsError,
@@ -73,6 +80,11 @@ def test_user_request_models_reject_invalid_data(model, payload) -> None:
         model.model_validate(payload)
 
 
+def test_account_settings_reject_a_future_birth_date() -> None:
+    with pytest.raises(ValidationError):
+        AccountSettings(date_of_birth=date.today() + timedelta(days=1))
+
+
 def test_user_response_excludes_internal_and_password_fields(session: Session) -> None:
     user = create_user(session)
     response = UserResponse.model_validate(user).model_dump()
@@ -99,11 +111,27 @@ def test_user_service_create_lookup_update_and_password_change(session: Session)
 
     user.email_verified_at = datetime.now(UTC)
     updated = service.update_user(
-        user.id, UserUpdate(username="captain", email="captain@example.com")
+        user.id,
+        UserUpdate(
+            username="captain",
+            email="captain@example.com",
+            settings=AccountSettings(
+                first_name="Alex",
+                country="GB",
+                appearance="system",
+                interests=["matches", "fantasy"],
+            ),
+        ),
     )
     assert updated is user
     assert user.username_normalized == "captain"
     assert user.email_verified_at is None
+    assert user.settings == {
+        "first_name": "Alex",
+        "country": "GB",
+        "appearance": "system",
+        "interests": ["matches", "fantasy"],
+    }
     assert service.update_user(9999, UserUpdate(username="missing")) is None
 
     changed = service.change_password(
@@ -307,14 +335,57 @@ def test_auth_api_register_login_me_patch_and_logout(client: TestClient) -> None
 
     patched = client.patch(
         "/api/v1/users/me",
-        json={"username": "captain"},
+        json={
+            "username": "captain",
+            "settings": {
+                "first_name": "Alex",
+                "last_name": "Morgan",
+                "country": "GB",
+                "nationality": "US",
+                "different_nationality": True,
+                "email_news": True,
+                "appearance": "dark",
+                "interests": ["matches", "players"],
+            },
+        },
     )
     assert patched.status_code == 200
     assert patched.json()["username"] == "captain"
+    assert patched.json()["settings"]["first_name"] == "Alex"
+    assert patched.json()["settings"]["appearance"] == "dark"
+
+    changed = client.post(
+        "/api/v1/users/me/password",
+        json={"current_password": PASSWORD, "new_password": NEW_PASSWORD},
+    )
+    assert changed.status_code == 204
+    assert client.get("/api/v1/users/me").status_code == 401
+
+    invalid_login = client.post(
+        "/auth/v1/login",
+        json={"email": "alex@example.com", "password": PASSWORD},
+    )
+    assert invalid_login.status_code == 401
+    assert client.post(
+        "/auth/v1/login",
+        json={"email": "alex@example.com", "password": NEW_PASSWORD},
+    ).status_code == 204
 
     assert client.post("/auth/v1/logout").status_code == 204
     assert client.get("/api/v1/users/me").status_code == 401
     assert client.post("/auth/v1/logout").status_code == 204
+
+
+def test_password_change_rejects_the_wrong_current_password(
+    client: TestClient,
+) -> None:
+    register(client)
+    response = client.post(
+        "/api/v1/users/me/password",
+        json={"current_password": "wrong-password", "new_password": NEW_PASSWORD},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Current password is incorrect"}
 
 
 def test_auth_api_rejects_credentials_and_disallowed_origin(client: TestClient) -> None:

@@ -11,6 +11,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    JSON,
     String,
     UniqueConstraint,
 )
@@ -46,6 +47,8 @@ class User(Base):
         String(320),
         nullable=False,
     )
+
+    settings: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
 
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 

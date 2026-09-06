@@ -213,6 +213,73 @@ describe('App', () => {
     })
   })
 
+  it('edits and saves personal account details', async () => {
+    const user = userEvent.setup()
+    const account = {
+      id: 1,
+      username: 'alex',
+      email: 'alex@example.com',
+      is_active: true,
+      email_verified_at: null,
+      created_at: '2026-08-25T00:00:00Z',
+      settings: {
+        first_name: 'Alex',
+        last_name: 'Morgan',
+        date_of_birth: null,
+        gender: '',
+        country: '',
+        nationality: '',
+        different_nationality: false,
+        email_news: false,
+        email_fantasy: false,
+        appearance: 'light',
+        interests: [],
+      },
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/v1/users/me' && init?.method === 'PATCH') {
+        return jsonResponse({ ...account, username: 'captain' })
+      }
+      if (String(input) === '/api/v1/users/me') return jsonResponse(account)
+      return jsonResponse(null, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    window.history.replaceState({}, '', '/account')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Personal details' })).toBeInTheDocument()
+    expect(screen.getByLabelText('First name')).toHaveValue('Alex')
+    await user.clear(screen.getByLabelText('Username'))
+    await user.type(screen.getByLabelText('Username'), 'captain')
+    await user.selectOptions(screen.getByLabelText('Country of residence'), 'GB')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Your changes have been saved.')
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/users/me', expect.objectContaining({
+      method: 'PATCH',
+      credentials: 'include',
+      body: expect.stringContaining('"country":"GB"'),
+    }))
+  })
+
+  it('validates password confirmation before changing a password', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/v1/users/me') return squadDataResponse(input)!
+      return jsonResponse(null, 404)
+    }))
+    window.history.replaceState({}, '', '/account')
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Account security' }))
+    await user.type(screen.getByLabelText('Current password'), 'matchday1')
+    await user.type(screen.getByLabelText('New password'), 'new-matchday2')
+    await user.type(screen.getByLabelText('Confirm new password'), 'different2')
+    await user.click(screen.getByRole('button', { name: 'Change password' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('New passwords do not match.')
+  })
+
   it('redirects an authenticated user from home to their squad', async () => {
     const user = userEvent.setup()
     const account = {
@@ -231,7 +298,7 @@ describe('App', () => {
     window.history.replaceState({}, '', '/account')
     render(<App />)
 
-    await screen.findByRole('heading', { name: 'Welcome, alex' })
+    await screen.findByRole('heading', { name: 'Personal details' })
     await user.click(screen.getByRole('button', { name: 'Fantasy PL home' }))
 
     expect(await screen.findByRole('region', { name: 'Select all 15 squad players' })).toBeInTheDocument()

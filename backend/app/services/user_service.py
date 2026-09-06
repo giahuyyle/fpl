@@ -100,6 +100,8 @@ class UserService:
                         user.email_verified_at = None
                     user.email = email
                     user.email_normalized = normalized
+                if payload.settings is not None:
+                    user.settings = {**(user.settings or {}), **payload.settings.model_dump(mode="json", exclude_unset=True)}
                 self._db.flush()
         except IntegrityError as exc:
             raise DuplicateUserError(

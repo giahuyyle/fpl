@@ -1,4 +1,5 @@
 export type User = {
+  settings?: AccountSettings
   id: number
   username: string
   email: string
@@ -62,4 +63,40 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     throw new Error(await errorMessage(response, 'Unable to log out.'))
   }
+}
+
+export type AccountSettings = {
+  first_name: string
+  last_name: string
+  date_of_birth: string | null
+  gender: '' | 'male' | 'female' | 'non-binary' | 'prefer-not-to-say'
+  country: string
+  nationality: string
+  different_nationality: boolean
+  email_news: boolean
+  email_fantasy: boolean
+  appearance: 'light' | 'dark' | 'system'
+  interests: Array<'matches' | 'fantasy' | 'players' | 'clubs'>
+}
+
+export const defaultAccountSettings: AccountSettings = {
+  first_name: '', last_name: '', date_of_birth: null, gender: '', country: '', nationality: '',
+  different_nationality: false, email_news: false, email_fantasy: false, appearance: 'light', interests: [],
+}
+
+export async function updateAccount(payload: { username?: string; email?: string; settings?: Partial<AccountSettings> }): Promise<User> {
+  const response = await fetch('/api/v1/users/me', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload),
+  })
+  if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
+  if (!response.ok) throw new Error(await errorMessage(response, 'Unable to save your settings.'))
+  return response.json() as Promise<User>
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const response = await fetch('/api/v1/users/me/password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  if (response.status === 401) throw new AuthenticationRequiredError('Authentication required')
+  if (!response.ok) throw new Error(await errorMessage(response, 'Unable to change your password.'))
 }
