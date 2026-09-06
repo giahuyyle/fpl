@@ -97,9 +97,9 @@ export function SquadPitch({ picks, positions, seasonName, mode, lineupOrder, ca
   const ordered = lineupOrder.flatMap((slot) => picks[slot] ? [{ slot, player: picks[slot] }] : [])
   const starters = ordered.slice(0, 11)
   const bench = ordered.slice(11, 15)
-  const clickable = mode === 'pick-team'
+  const clickable = true
 
-  return <section aria-label={clickable ? 'Edit starting XI and substitutes' : 'Saved starting squad'} className="overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_#17001924]">
+  return <section aria-label={mode === 'pick-team' ? 'Edit starting XI and substitutes' : 'Saved starting squad'} className="overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_#17001924]">
     <div className="relative min-h-[690px] bg-[#039b58] bg-[repeating-linear-gradient(90deg,#ffffff00_0_86px,#ffffff09_86px_172px)] px-3 py-7 tablet:min-h-[760px] tablet:px-6">
       <PitchMarkings />
       <div className="relative z-10 flex min-h-[630px] flex-col justify-around tablet:min-h-[700px]">

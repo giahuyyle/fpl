@@ -221,8 +221,6 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const budget = squad?.budget ?? 1000
   const draftBudget = remainingDraftBudget(picks, squad, budget)
   const pickCount = selectedIds.size
-  const actionPlayer = actionSlot ? picks[actionSlot] ?? recovery[actionSlot] : undefined
-  const actionRemoved = Boolean(actionSlot && !picks[actionSlot] && recovery[actionSlot])
   const pointGameweeks = gameweeks.filter((item) => gameweekHasStarted(item, currentTime))
   const editableGameweek = gameweeks.find((item) => new Date(item.deadline_time).getTime() > currentTime)
   const viewGameweeks = editableGameweek && !pointGameweeks.some((item) => item.id === editableGameweek.id)
@@ -247,6 +245,10 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const displayedViceCaptain = mode === 'view' && selectedPoints?.has_snapshot
     ? selectedPoints.picks.find((pick) => pick.is_vice_captain)?.slot ?? null
     : viceCaptainSlot
+  const actionPlayer = actionSlot
+    ? displayedPicks[actionSlot] ?? (mode === 'transfers' ? recovery[actionSlot] : undefined)
+    : undefined
+  const actionRemoved = Boolean(mode === 'transfers' && actionSlot && !picks[actionSlot] && recovery[actionSlot])
   const savedPlayerIds = new Set(squad?.picks.map((pick) => pick.player.id) ?? [])
   const draftTransfers = squad?.is_complete
     ? [...selectedIds].filter((playerId) => !savedPlayerIds.has(playerId)).length
@@ -362,7 +364,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   function handlePlayerClick(slot: number) {
-    if (mode === 'transfers') {
+    if (mode === 'view' || mode === 'transfers') {
       setActionSlot(slot)
       return
     }
@@ -551,7 +553,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
       </div>
     </div>
 
-    {mode !== 'view' && actionSlot && actionPlayer && <SquadActionDrawer isCaptain={captainSlot === actionSlot} isStarter={lineupOrder.indexOf(actionSlot) < 11} isViceCaptain={viceCaptainSlot === actionSlot} mode={mode} onCaptain={() => chooseCaptain(actionSlot)} onClose={() => setActionSlot(null)} onRemove={() => removeTransferPlayer(actionSlot)} onRestore={() => restoreOriginal(actionSlot)} onSelectReplacement={() => selectReplacement(actionSlot)} onSubstitute={() => beginSubstitution(actionSlot)} onViceCaptain={() => chooseViceCaptain(actionSlot)} player={actionPlayer} removed={actionRemoved} />}
+    {actionSlot && actionPlayer && <SquadActionDrawer fixtures={fixtures} gameweeks={gameweeks} isCaptain={displayedCaptain === actionSlot} isStarter={displayedLineup.indexOf(actionSlot) < 11} isViceCaptain={displayedViceCaptain === actionSlot} mode={mode} onCaptain={() => chooseCaptain(actionSlot)} onClose={() => setActionSlot(null)} onRemove={() => removeTransferPlayer(actionSlot)} onRestore={() => restoreOriginal(actionSlot)} onSelectReplacement={() => selectReplacement(actionSlot)} onSubstitute={() => beginSubstitution(actionSlot)} onViceCaptain={() => chooseViceCaptain(actionSlot)} player={actionPlayer} pointsHistory={pointsHistory} removed={actionRemoved} selectedGameweekNumber={selectedGameweekNumber} />}
     {profileOpen && <SquadProfileDialog onClose={() => setProfileOpen(false)} onSave={submitProfile} open saving={profileSaving} squad={squad} teams={teams} />}
   </main>
 }

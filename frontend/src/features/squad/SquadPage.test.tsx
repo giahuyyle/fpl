@@ -32,7 +32,13 @@ function player(id: number, code: Position['code'], teamId = ((id - 1) % 5) + 1,
     can_select: true,
     team: teams.find((team) => team.id === teamId)!,
     position: { id: position.id, code: position.code, name: position.name },
-    stats: { now_cost: cost, form: id, total_points: id * 10 } as Player['stats'],
+    stats: {
+      now_cost: cost,
+      form: id,
+      points_per_game: id,
+      selected_by_percent: id,
+      total_points: id * 10,
+    } as Player['stats'],
   }
 }
 
@@ -245,7 +251,13 @@ describe('SquadPage', () => {
     fireEvent.error(pickedKit)
     expect(within(pickedPlayer).getByRole('img', { name: 'Generic player portrait' })).toBeInTheDocument()
     await user.click(pickedPlayer)
-    expect(screen.getByRole('dialog', { name: 'Player 01 actions' })).toBeInTheDocument()
+    const playerDrawer = screen.getByRole('dialog', { name: 'Player 01 actions' })
+    expect(playerDrawer).toBeInTheDocument()
+    expect(within(playerDrawer).getByText('Goalkeeper')).toBeInTheDocument()
+    expect(within(playerDrawer).getByText('Pts / Match')).toBeInTheDocument()
+    expect(within(playerDrawer).getByText('Selected')).toBeInTheDocument()
+    expect(within(playerDrawer).getByRole('region', { name: 'Player fixtures' })).toBeInTheDocument()
+    expect(within(playerDrawer).getByText('TWO (H)')).toBeInTheDocument()
     expect(pickedPlayer.className).not.toContain('ring-')
     await user.click(screen.getByRole('button', { name: 'Close player actions' }))
 
@@ -316,6 +328,12 @@ describe('SquadPage', () => {
     expect(cardClasses).toHaveLength(15)
     expect(new Set(cardClasses)).toHaveProperty('size', 1)
     expect(within(savedPitch).getAllByText('TWO (H)')).toHaveLength(3)
+    expect(within(savedPitch).getAllByRole('button', { name: /^Open actions/ })).toHaveLength(15)
+    await user.click(within(savedPitch).getByRole('button', { name: 'Open actions for Player 01' }))
+    const viewDrawer = screen.getByRole('dialog', { name: 'Player 01 actions' })
+    expect(within(viewDrawer).queryByRole('button', { name: 'Make captain' })).not.toBeInTheDocument()
+    expect(within(viewDrawer).queryByRole('button', { name: 'Substitute' })).not.toBeInTheDocument()
+    await user.click(within(viewDrawer).getByRole('button', { name: 'Close player actions' }))
     await user.click(screen.getByRole('button', { name: 'Home' }))
     expect(window.location.pathname).toBe('/')
     window.history.replaceState({}, '', '/squad')
