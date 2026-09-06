@@ -409,6 +409,20 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
     if (viceCaptainSlot === slot) setViceCaptainSlot(null)
   }
 
+  function resetTransfers() {
+    if (saving) return
+    const savedPicks = Object.fromEntries(squad?.picks.map((pick) => [pick.slot, pick.player]) ?? [])
+    setPicks(savedPicks)
+    setLineupOrder(savedLineup(squad, savedPicks))
+    setCaptainSlot(squad?.picks.find((pick) => pick.is_captain)?.slot ?? null)
+    setViceCaptainSlot(squad?.picks.find((pick) => pick.is_vice_captain)?.slot ?? null)
+    setRecovery({})
+    setActionSlot(null)
+    setSubstituteFromSlot(null)
+    setSelectedSlot(Array.from({ length: 15 }, (_, index) => index + 1).find((slot) => !savedPicks[slot]) ?? null)
+    setMessage('')
+  }
+
   function chooseViceCaptain(slot: number) {
     setViceCaptainSlot(slot)
     if (captainSlot === slot) setCaptainSlot(null)
@@ -537,7 +551,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
 
       <div className="grid items-start gap-6 wide:grid-cols-[minmax(390px,5fr)_minmax(0,7fr)] wide:items-stretch">
         <div aria-label="Squad selection and fixtures" className="wide:order-2" role="group">
-          <SquadRouteHeader actions={<>
+          <SquadRouteHeader onReset={resetTransfers} resetDisabled={saving} actions={<>
             {squad?.is_complete && mode === 'view' && <><button onClick={() => enterMode('pick-team')} type="button">Pick team</button><button onClick={() => enterMode('transfers')} type="button">Transfers</button></>}
             {mode !== 'view' && squad?.is_complete && <button onClick={() => enterMode('view')} type="button">View squad</button>}
             {mode !== 'view' && <button disabled={saving || transferNeedsReplacement || overBudget || missingLeaders || !editableGameweek} onClick={submitSquad} type="button">{saving ? 'Saving…' : !editableGameweek ? 'Changes closed' : transferNeedsReplacement ? 'Select a replacement' : overBudget ? `Over budget by ${price(Math.abs(draftBudget))}` : missingLeaders ? 'Select captain and vice captain' : mode === 'pick-team' ? 'Save team' : pickCount === 15 ? squad?.is_complete ? 'Make transfers' : 'Save squad' : `Save draft · ${pickCount}/15`}</button>}

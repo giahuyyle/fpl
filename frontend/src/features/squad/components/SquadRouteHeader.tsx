@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { SquadPoints, UserChipState } from '../api/squadApi'
 import type { SquadMode } from './SquadPitch'
 import { Icon } from '../../../shared/ui/Icon'
@@ -23,6 +23,8 @@ type Props = {
   squadName?: string
   squadValue: number
   transferCost?: number
+  onReset?: () => void
+  resetDisabled?: boolean
 }
 
 const chipDefinitions = [
@@ -41,7 +43,8 @@ function chipKey(chip: UserChipState) {
   return null
 }
 
-export function SquadRouteHeader({ actions, budget, canGoNextGameweek = false, canGoPreviousGameweek = false, chipUpdating = false, chips, deadline, freeTransfers = 1, gameweekName, mode, onChipChange, onNextGameweek, onPreviousGameweek, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
+export function SquadRouteHeader({ actions, budget, canGoNextGameweek = false, canGoPreviousGameweek = false, chipUpdating = false, chips, deadline, freeTransfers = 1, gameweekName, mode, onChipChange, onNextGameweek, onPreviousGameweek, onReset, resetDisabled = false, pickCount, points, squadName = 'Squad', squadValue, transferCost = 0 }: Props) {
+  const [confirmReset, setConfirmReset] = useState(false)
   const title = mode === 'pick-team' ? 'Pick Team' : mode === 'transfers' ? 'Transfers' : squadName
   const visibleChips = chips.flatMap((chip) => {
     const key = chipKey(chip)
@@ -50,6 +53,13 @@ export function SquadRouteHeader({ actions, budget, canGoNextGameweek = false, c
   })
 
   return <section aria-label={`${title} summary`} className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-sm">
+    {mode === 'transfers' && onReset && <div className="flex justify-end px-5 pt-4 tablet:px-7">
+      {confirmReset ? <div aria-label="Confirm squad reset" className="flex flex-wrap items-center justify-end gap-3 rounded-xl bg-[#f0eaf1] px-4 py-3 text-sm text-pl-purple" role="group">
+        <span>Discard unsaved changes?</span>
+        <button className="rounded-lg bg-pl-purple px-3 py-2 font-bold text-white disabled:opacity-50" disabled={resetDisabled} onClick={() => { onReset(); setConfirmReset(false) }} type="button">Yes, reset</button>
+        <button className="rounded-lg px-3 py-2 font-bold hover:bg-white" onClick={() => setConfirmReset(false)} type="button">Cancel</button>
+      </div> : <button className="min-h-11 rounded-xl border-2 border-pl-purple bg-[#f0eaf1] px-6 py-2.5 text-base font-bold text-pl-purple transition-colors hover:bg-[#e6dce8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pl-purple disabled:cursor-not-allowed disabled:opacity-50" disabled={resetDisabled} onClick={() => setConfirmReset(true)} type="button">Reset</button>}
+    </div>}
     <div className={`flex flex-col gap-5 px-5 py-5 tablet:px-7 tablet:py-6 ${mode === 'transfers' ? 'wide:flex-row wide:items-center wide:justify-between' : ''}`}>
       {mode === 'view'
         ? <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-3 tablet:grid-cols-[44px_minmax(0,1fr)_44px]">

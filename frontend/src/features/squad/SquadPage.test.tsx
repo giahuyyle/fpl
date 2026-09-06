@@ -420,6 +420,16 @@ describe('SquadPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Select empty GKP slot 1' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Select a replacement' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByRole('group', { name: 'Confirm squad reset' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Select empty GKP slot 1' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, reset' }))
+    expect(screen.queryByRole('button', { name: 'Select empty GKP slot 1' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open actions for Player 01' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Make transfers' })).toBeEnabled()
+    expect(JSON.parse(window.localStorage.getItem('fpl:squad-recovery:1') ?? '{}')).toEqual({})
   })
 
   it('shows load, search, and save errors without losing the draft', async () => {
