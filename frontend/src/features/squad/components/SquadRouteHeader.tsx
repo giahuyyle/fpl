@@ -91,6 +91,6 @@ export function SquadRouteHeader({ actions, budget, canGoNextGameweek = false, c
         ['Transfers', String(points?.transfers ?? 0)],
       ].map(([label, value]) => <div className="bg-white px-3 py-5 text-center" key={label}><dd className="font-display text-2xl font-black text-pl-purple">{value}</dd><dt className="mt-1 text-[9px] font-bold text-muted">{label}</dt></div>)}
     </dl>}
-    {actions && <div aria-label={`${title} actions`} className="flex flex-wrap justify-end gap-2 border-t border-[#e7e0e8] px-5 py-4 tablet:px-7">{actions}</div>}
+    {actions && <div aria-label={`${title} actions`} className="grid auto-cols-fr grid-flow-col divide-x divide-[#e7e0e8] border-t border-[#e7e0e8] [&>button]:min-h-[60px] [&>button]:min-w-0 [&>button]:bg-white [&>button]:px-4 [&>button]:py-4 [&>button]:text-sm [&>button]:font-bold [&>button]:text-pl-purple [&>button]:transition-colors [&>button:enabled:hover]:bg-[#f0eaf1] [&>button:focus-visible]:bg-[#f0eaf1] [&>button:focus-visible]:outline-2 [&>button:focus-visible]:-outline-offset-4 [&>button:focus-visible]:outline-pl-purple [&>button:disabled]:cursor-not-allowed [&>button:disabled]:text-muted [&>button:last-child]:bg-pl-purple [&>button:last-child]:text-white [&>button:last-child:enabled:hover]:bg-[#52005b] [&>button:last-child:focus-visible]:bg-[#52005b] [&>button:last-child:focus-visible]:outline-white [&>button:last-child:disabled]:bg-[#8f7394] [&>button:last-child:disabled]:text-white/80">{actions}</div>}
   </section>
 }
