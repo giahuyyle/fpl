@@ -87,7 +87,7 @@ export function teamBadge(code: number) {
 export function playerPhoto(photo: string | null) {
   if (!photo) return null
   const code = photo.replace(/\.jpg$/i, '')
-  return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png`
+  return `https://resources.premierleague.com/premierleague25/photos/players/110x140/${code}.png`
 }
 
 export function seasonAssetKey(seasonName: string) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Player, Squad } from './api/squadApi'
-import { kitImage, remainingDraftBudget, seasonAssetKey } from './squadConfig'
+import { kitImage, playerPhoto, remainingDraftBudget, seasonAssetKey } from './squadConfig'
 
 function player(id: number, nowCost: number) {
   return { id, stats: { now_cost: nowCost } } as Player
@@ -37,5 +37,14 @@ describe('local kit assets', () => {
     expect(kitImage('2026/27', 11, 'GKP')).toBe('/kits/2026-27/shirt_11_1-220.webp')
     expect(kitImage('2026/27', 14, 'MID')).toBe('/kits/2026-27/shirt_14-220.webp')
     expect(kitImage('', 14, 'MID')).toBeNull()
+  })
+})
+
+describe('playerPhoto', () => {
+  it('uses the current versioned Premier League CDN without the legacy prefix', () => {
+    expect(playerPhoto('466052.jpg')).toBe(
+      'https://resources.premierleague.com/premierleague25/photos/players/110x140/466052.png',
+    )
+    expect(playerPhoto(null)).toBeNull()
   })
 })
