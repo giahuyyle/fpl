@@ -11,17 +11,18 @@ type Props = {
   gameweeks?: Gameweek[]
   pointsHistory?: SquadPoints[]
   selectedGameweekNumber?: number
-  removed: boolean
-  isStarter: boolean
-  isCaptain: boolean
-  isViceCaptain: boolean
-  onCaptain: () => void
+  marketAction?: { disabled: boolean; onAdd: () => void }
+  removed?: boolean
+  isStarter?: boolean
+  isCaptain?: boolean
+  isViceCaptain?: boolean
+  onCaptain?: () => void
   onClose: () => void
-  onRemove: () => void
-  onRestore: () => void
-  onSelectReplacement: () => void
-  onSubstitute: () => void
-  onViceCaptain: () => void
+  onRemove?: () => void
+  onRestore?: () => void
+  onSelectReplacement?: () => void
+  onSubstitute?: () => void
+  onViceCaptain?: () => void
 }
 
 function DrawerPortrait({ photo, playerName }: { photo: string | null; playerName: string }) {
@@ -78,7 +79,7 @@ function playerFixtures(
   })
 }
 
-export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [], pointsHistory = [], selectedGameweekNumber, removed, isStarter, isCaptain, isViceCaptain, onCaptain, onClose, onRemove, onRestore, onSelectReplacement, onSubstitute, onViceCaptain }: Props) {
+export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [], pointsHistory = [], selectedGameweekNumber, marketAction, removed = false, isStarter = false, isCaptain = false, isViceCaptain = false, onCaptain, onClose, onRemove, onRestore, onSelectReplacement, onSubstitute, onViceCaptain }: Props) {
   const photo = playerPhoto(player.photo)
   const upcoming = playerFixtures(player, fixtures, gameweeks, pointsHistory, selectedGameweekNumber)
   const firstName = player.first_name.trim()
@@ -106,9 +107,9 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
       </div>
 
       <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl bg-white text-center shadow-sm">
-        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">Form</span><b className="mt-1 block text-lg text-pl-purple">{player.stats.form}</b></div>
-        <div className="border-x border-[#eee8ef] p-5"><span className="block text-[10px] text-muted">Pts / Match</span><b className="mt-1 block text-lg text-pl-purple">{player.stats.points_per_game}</b></div>
-        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">Selected</span><b className="mt-1 block text-lg text-pl-purple">{player.stats.selected_by_percent}%</b></div>
+        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">{marketAction ? 'Total points' : 'Form'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.total_points : player.stats.form}</b></div>
+        <div className="border-x border-[#eee8ef] p-5"><span className="block text-[10px] text-muted">{marketAction ? 'Form' : 'Pts / Match'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.form : player.stats.points_per_game}</b></div>
+        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">{marketAction ? 'Pts / Match' : 'Selected'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.points_per_game : `${player.stats.selected_by_percent}%`}</b></div>
       </div>
 
       {upcoming.length > 0 && <section aria-label="Player fixtures" className="mt-4 rounded-2xl bg-white px-4 py-5 shadow-sm">
@@ -124,6 +125,7 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
       </section>}
 
       <div className="mt-auto pt-8">
+        {marketAction && <button className="w-full rounded-xl bg-pl-purple px-4 py-3 text-xs font-bold uppercase tracking-[.08em] text-white disabled:bg-[#d8cfdc] disabled:text-[#88768c]" disabled={marketAction.disabled} onClick={marketAction.onAdd} type="button">{marketAction.disabled ? 'Already selected' : 'Add player'}</button>}
         {mode === 'pick-team' && <>
           <div className="grid grid-cols-2 gap-3">
             <button aria-label={isCaptain ? 'Captain ✓' : 'Make captain'} aria-pressed={isCaptain} className="flex items-center gap-3 border-0 bg-transparent px-1 py-2 text-left text-sm text-muted disabled:opacity-45" disabled={!isStarter} onClick={onCaptain} type="button"><span aria-hidden="true" className={`grid size-6 place-items-center rounded-md border-2 ${isCaptain ? 'border-pl-purple bg-pl-purple text-white' : 'border-[#9f8da4] bg-white'}`}>{isCaptain ? '✓' : ''}</span>Captain</button>
@@ -132,7 +134,7 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
           {!isStarter && <p className="mt-2 text-center text-[9px] text-muted">Only starting players can be captain or vice captain.</p>}
           <button className="mt-3 w-full rounded-xl bg-pl-purple px-4 py-3 text-xs font-bold text-white" onClick={onSubstitute} type="button">Substitute</button>
         </>}
-        {mode === 'transfers' && <div className="grid grid-cols-2 gap-3">
+        {mode === 'transfers' && !marketAction && <div className="grid grid-cols-2 gap-3">
           <button className="rounded-xl bg-pl-purple px-4 py-3 text-xs font-bold text-white" onClick={removed ? onRestore : onRemove} type="button">{removed ? 'Restore original' : 'Remove player'}</button>
           <button className="rounded-xl bg-pl-purple px-4 py-3 text-xs font-bold text-white" onClick={onSelectReplacement} type="button">Select replacement</button>
         </div>}

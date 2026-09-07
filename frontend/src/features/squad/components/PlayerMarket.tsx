@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { Player, Position, Team } from '../api/squadApi'
-import { price, statOptions, teamBadge } from '../squadConfig'
+import { kitImage, price, statOptions, teamBadge } from '../squadConfig'
+import './PlayerMarket.css'
 
 export type MarketFilters = {
   query: string
@@ -22,12 +24,27 @@ type Props = {
   teams: Team[]
   selectedPosition?: Position
   selectedIds: Set<number>
+  seasonName: string
   onAdd: (player: Player) => void
+  onInfo: (player: Player) => void
 }
 
 const inputClass = 'min-h-10 w-full rounded-xl border border-[#ddd5df] bg-[#faf9fb] px-3 text-xs text-pl-purple outline-none transition focus:border-pl-purple focus:bg-white focus:ring-2 focus:ring-pl-purple/10'
 
-export function PlayerMarket({ filters, onFilters, players, total, loading, teams, selectedPosition, selectedIds, onAdd }: Props) {
+function MarketKit({ player, seasonName }: { player: Player; seasonName: string }) {
+  const [fallback, setFallback] = useState(false)
+  const kit = kitImage(seasonName, player.team.code, player.position.code)
+
+  return <img
+    alt={`${player.team.name} ${fallback || !kit ? 'crest' : 'kit'}`}
+    className="player-market-kit"
+    loading="lazy"
+    onError={() => setFallback(true)}
+    src={fallback || !kit ? teamBadge(player.team.code) : kit}
+  />
+}
+
+export function PlayerMarket({ filters, onFilters, players, total, loading, teams, selectedPosition, selectedIds, seasonName, onAdd, onInfo }: Props) {
   function set<K extends keyof MarketFilters>(key: K, value: MarketFilters[K]) {
     onFilters({ ...filters, [key]: value })
   }
@@ -53,34 +70,32 @@ export function PlayerMarket({ filters, onFilters, players, total, loading, team
     <div className="max-h-[720px] overflow-auto wide:min-h-0 wide:max-h-none wide:flex-1" aria-busy={loading}>
       {loading && <p className="p-6 text-center text-xs text-muted" role="status">Searching players…</p>}
       {!loading && players.length === 0 && <p className="p-8 text-center text-sm text-muted">No players match these filters.</p>}
+      {!loading && players.length > 0 && <div className="player-market-columns" aria-hidden="true">
+        <strong>{selectedPosition ? `${selectedPosition.name}${selectedPosition.name.endsWith('s') ? '' : 's'}` : 'Players'}</strong>
+        <span>Price</span>
+        <abbr title="Total points">TP</abbr>
+        <span>Add</span>
+      </div>}
       {!loading && players.map((player) => {
         const selected = selectedIds.has(player.id)
-        return <button
-          className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-0 border-b border-[#eee9ef] bg-white px-4 py-3 text-left transition hover:bg-[#f7fff9] focus-visible:relative focus-visible:z-10 tablet:px-5"
-          disabled={selected}
-          key={player.id}
-          onClick={() => onAdd(player)}
-          type="button"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            <img
-              alt={`${player.team.name} crest`}
-              className="h-10 w-10 shrink-0 object-contain"
-              loading="lazy"
-              onError={(event) => { event.currentTarget.hidden = true }}
-              src={teamBadge(player.team.code)}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <b className="truncate font-display text-sm font-extrabold text-pl-purple">{player.web_name}</b>
-                <small className="rounded bg-[#eee8ef] px-1.5 py-0.5 text-[8px] font-black text-pl-purple">{player.position.code}</small>
-              </span>
-              <span className="mt-0.5 block truncate text-[10px] font-semibold text-muted">{player.team.name}</span>
-              <span className="mt-1 flex gap-3 text-[10px] text-muted"><span>Form <b className="text-pl-purple">{player.stats.form}</b></span><span>Pts <b className="text-pl-purple">{player.stats.total_points}</b></span></span>
-            </span>
+        return <div className="player-market-row" key={player.id}>
+          <button className="player-market-info-button" aria-label={`View ${player.web_name} details`} onClick={() => onInfo(player)} type="button"><span aria-hidden="true">i</span></button>
+          <MarketKit player={player} seasonName={seasonName} />
+          <span className="player-market-identity">
+            <b>{player.web_name}</b>
+            <span>{player.team.short_name} <small>{player.position.code}</small></span>
+            <span className="player-market-form">Form {player.stats.form}</span>
           </span>
-          <span className="text-right"><b className="block text-xs text-pl-purple">{price(player.stats.now_cost)}</b><small className={`mt-1 block text-[9px] font-black uppercase tracking-[.1em] ${selected ? 'text-muted' : 'text-pl-pink'}`}>{selected ? 'Selected' : 'Add +'}</small></span>
-        </button>
+          <strong className="player-market-price"><span className="sr-only">Price </span>{price(player.stats.now_cost)}</strong>
+          <strong className="player-market-points"><span className="sr-only">Total points </span>{player.stats.total_points}</strong>
+          <button
+            aria-label={selected ? `${player.web_name} already selected` : `Add ${player.web_name}`}
+            className="player-market-add-button"
+            disabled={selected}
+            onClick={() => onAdd(player)}
+            type="button"
+          ><span aria-hidden="true">{selected ? '✓' : '+'}</span></button>
+        </div>
       })}
     </div>
   </aside>

@@ -112,6 +112,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const [internalMode, setInternalMode] = useState<SquadMode>('transfers')
   const [selectedSlot, setSelectedSlot] = useState<number | null>(1)
   const [actionSlot, setActionSlot] = useState<number | null>(null)
+  const [marketPlayer, setMarketPlayer] = useState<Player | null>(null)
   const [substituteFromSlot, setSubstituteFromSlot] = useState<number | null>(null)
   const [recovery, setRecovery] = useState<RecoveryMap>({})
   const [filters, setFilters] = useState(initialFilters)
@@ -321,7 +322,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   function addPlayer(player: Player) {
-    if (selectedSlot) placePlayer(selectedSlot, player)
+    if (selectedSlot && placePlayer(selectedSlot, player)) setMarketPlayer(null)
   }
 
   function scrollToMarket() {
@@ -329,6 +330,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   function selectReplacement(slot: number) {
+    setMarketPlayer(null)
     const currentPlayer = picks[slot]
     if (currentPlayer) {
       if (!recovery[slot]) persistRecovery({ ...recovery, [slot]: currentPlayer })
@@ -360,11 +362,13 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }
 
   function handleEmptySlot(slot: number) {
+    setMarketPlayer(null)
     if (recovery[slot]) setActionSlot(slot)
     else selectReplacement(slot)
   }
 
   function handlePlayerClick(slot: number) {
+    setMarketPlayer(null)
     if (mode === 'view' || mode === 'transfers') {
       setActionSlot(slot)
       return
@@ -402,6 +406,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   function beginSubstitution(slot: number) {
     setSubstituteFromSlot(slot)
     setActionSlot(null)
+    setMarketPlayer(null)
     setMessage(`Select another player to substitute with ${picks[slot]?.web_name}.`)
   }
 
@@ -419,6 +424,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
     setViceCaptainSlot(squad?.picks.find((pick) => pick.is_vice_captain)?.slot ?? null)
     setRecovery({})
     setActionSlot(null)
+    setMarketPlayer(null)
     setSubstituteFromSlot(null)
     setSelectedSlot(Array.from({ length: 15 }, (_, index) => index + 1).find((slot) => !savedPicks[slot]) ?? null)
     setMessage('')
@@ -437,6 +443,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
         : editableGameweek?.number ?? pointGameweeks.at(-1)?.number,
     )
     setActionSlot(null)
+    setMarketPlayer(null)
     setSubstituteFromSlot(null)
     setSelectedSlot(null)
     setMessage('')
@@ -560,13 +567,14 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
         </div>
         <div className="wide:relative wide:order-1 wide:min-h-0">
           {mode === 'transfers'
-            ? <PlayerMarket filters={filters} loading={searching} onAdd={addPlayer} onFilters={setFilters} players={players} selectedIds={selectedIds} selectedPosition={selectedPosition} teams={teams} total={playerTotal} />
+            ? <PlayerMarket filters={filters} loading={searching} onAdd={addPlayer} onFilters={setFilters} onInfo={(player) => { setActionSlot(null); setMarketPlayer(player) }} players={players} seasonName={season?.name ?? ''} selectedIds={selectedIds} selectedPosition={selectedPosition} teams={teams} total={playerTotal} />
             : <SquadInfoPanel badgeStyle={squad?.badge_style ?? 'classic-purple'} bank={Math.max(0, squad?.remaining_budget ?? draftBudget)} favoriteTeams={squad?.favorite_teams ?? []} onEdit={() => setProfileOpen(true)} points={selectedPoints} squadName={squad?.name ?? 'Squad'} squadValue={spent} username={user?.username ?? ''} />}
         </div>
       </div>
     </div>
 
     {actionSlot && actionPlayer && <SquadActionDrawer fixtures={fixtures} gameweeks={gameweeks} isCaptain={displayedCaptain === actionSlot} isStarter={displayedLineup.indexOf(actionSlot) < 11} isViceCaptain={displayedViceCaptain === actionSlot} mode={mode} onCaptain={() => chooseCaptain(actionSlot)} onClose={() => setActionSlot(null)} onRemove={() => removeTransferPlayer(actionSlot)} onRestore={() => restoreOriginal(actionSlot)} onSelectReplacement={() => selectReplacement(actionSlot)} onSubstitute={() => beginSubstitution(actionSlot)} onViceCaptain={() => chooseViceCaptain(actionSlot)} player={actionPlayer} pointsHistory={pointsHistory} removed={actionRemoved} selectedGameweekNumber={selectedGameweekNumber} />}
+    {marketPlayer && <SquadActionDrawer fixtures={fixtures} gameweeks={gameweeks} marketAction={{ disabled: selectedIds.has(marketPlayer.id) || !selectedSlot, onAdd: () => addPlayer(marketPlayer) }} mode="transfers" onClose={() => setMarketPlayer(null)} player={marketPlayer} pointsHistory={pointsHistory} selectedGameweekNumber={selectedGameweekNumber} />}
     {profileOpen && <SquadProfileDialog onClose={() => setProfileOpen(false)} onSave={submitProfile} open saving={profileSaving} squad={squad} teams={teams} />}
   </main>
 }

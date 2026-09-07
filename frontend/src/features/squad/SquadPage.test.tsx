@@ -226,20 +226,26 @@ describe('SquadPage', () => {
     expect(within(squadColumn).getByRole('heading', { name: 'Fixtures' })).toBeInTheDocument()
     expect(screen.getByText('Gameweek 1')).toBeInTheDocument()
 
-    const resultName = await screen.findByText('Player 01')
-    const resultButton = resultName.closest('button')!
-    expect(screen.getByRole('img', { name: 'Club One crest' })).toHaveAttribute(
+    await screen.findByText('Player 01')
+    expect(screen.getByRole('img', { name: 'Club One kit' })).toHaveAttribute(
       'src',
-      '/crests/t10.png',
+      '/kits/2026-27/shirt_10_1-220.webp',
     )
-    expect(within(resultButton).getByText('Club One')).toBeInTheDocument()
+    expect(screen.getByText('ONE')).toBeInTheDocument()
+    expect(document.querySelector('.player-market-columns')).toHaveTextContent('PriceTPAdd')
     await waitFor(() => {
       const calls = fetchMock.mock.calls.filter(([input]) => String(input) === '/api/v1/players/search')
       const body = JSON.parse(String(calls.at(-1)?.[1]?.body))
       expect(body.sort_by).toBe('now_cost')
       expect(body.sort_direction).toBe('desc')
     })
-    await user.click(resultButton)
+    await user.click(screen.getByRole('button', { name: 'View Player 01 details' }))
+    const marketDrawer = screen.getByRole('dialog', { name: 'Player 01 actions' })
+    expect(within(marketDrawer).getByText('Total points')).toBeInTheDocument()
+    expect(within(marketDrawer).getByText('£4.1m')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save draft · 0/15' })).toBeInTheDocument()
+    await user.click(within(marketDrawer).getByRole('button', { name: 'Add player' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save draft · 1/15' })).toBeInTheDocument()
     const pickedPlayer = screen.getByRole('button', { name: 'Open actions for Player 01' })
     expect(within(pickedPlayer).queryByRole('img', { name: 'Club One crest' })).not.toBeInTheDocument()
@@ -388,7 +394,7 @@ describe('SquadPage', () => {
     render(<SquadPage />)
     await screen.findByRole('region', { name: 'Select all 15 squad players' })
     await user.click(screen.getByRole('button', { name: 'Select empty FWD slot 15' }))
-    await user.click((await screen.findByText('Player 15')).closest('button')!)
+    await user.click(await screen.findByRole('button', { name: 'Add Player 15' }))
     await user.click(screen.getByRole('button', { name: 'Save squad' }))
     expect(await screen.findByText('Squad changes saved.')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Saved starting squad' })).toBeInTheDocument()
@@ -684,9 +690,9 @@ describe('SquadPage', () => {
     await screen.findByRole('region', { name: 'Select all 15 squad players' })
 
     await user.click(screen.getByRole('button', { name: 'Select empty DEF slot 4' }))
-    await user.click((await screen.findByText('Player 05')).closest('button')!)
+    await user.click(await screen.findByRole('button', { name: 'Add Player 05' }))
     expect(screen.getByRole('status')).toHaveTextContent('no more than three players')
-    await user.click(screen.getByText('Player 04').closest('button')!)
+    await user.click(screen.getByRole('button', { name: 'Add Player 04' }))
     expect(screen.getByRole('status')).toHaveTextContent('Over budget by £12.7m')
     expect(screen.getByRole('button', { name: 'Over budget by £12.7m' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Open actions for Player 04' })).toBeInTheDocument()
