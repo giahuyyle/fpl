@@ -3,6 +3,7 @@ import { navigate } from '../../shared/lib/navigation'
 import { SiteHeader } from '../../shared/ui/SiteHeader'
 import { AuthenticationRequiredError, changePassword, defaultAccountSettings, getCurrentUser, logout, updateAccount } from './api/session'
 import type { AccountSettings, User } from './api/session'
+import { AccountMenu } from './components/AccountMenu'
 import './account.css'
 
 const sections = ['Personal details', 'Email address', 'Email preferences', 'Account security', 'Appearance', 'Interests', 'Manage account'] as const
@@ -80,7 +81,7 @@ export function AccountPage() {
     setSettings(saved); setUsername(user?.username ?? ''); setEmail(user?.email ?? ''); setPasswords({ current: '', next: '', confirm: '' }); setError(''); setSuccess('')
   }
   return <div className="account-page" data-appearance={settings.appearance}>
-    <SiteHeader actions={user ? <button disabled={isLoggingOut || busy} onClick={submitLogout}>{isLoggingOut ? 'Logging out…' : 'Log out'}</button> : undefined} />
+    <SiteHeader actions={<AccountMenu isLoggingOut={isLoggingOut || busy} onLogout={submitLogout} />} />
     <main className="account-container">
       <div className="account-banner"><h1>myPremierLeague Settings</h1></div>
       {!user ? <section className="account-panel account-loading">{error ? <><p role="alert">{error}</p><button className="account-primary" onClick={() => { setError(''); setAttempt(n => n + 1) }}>Try again</button></> : <p role="status">Loading your account…</p>}</section> : <div className="account-layout">

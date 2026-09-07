@@ -1,0 +1,104 @@
+.account-dropdown {
+  position: relative;
+}
+
+.site-header-actions .account-dropdown-trigger {
+  min-height: 46px;
+  padding: 10px 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #d4c6d8;
+  border-radius: 999px;
+  background: #f1eaf3;
+  color: #37003c;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.site-header-actions .account-dropdown-trigger:hover,
+.site-header-actions .account-dropdown-trigger[aria-expanded='true'] {
+  background: #e9ddec;
+  border-color: #bca8c1;
+}
+
+.account-dropdown-chevron {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.account-dropdown-trigger[aria-expanded='true'] .account-dropdown-chevron {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.account-dropdown-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 176px;
+  padding: 7px;
+  border: 1px solid #e3d9e6;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(55, 0, 60, 0.17);
+  animation: account-menu-enter 140ms ease-out;
+}
+
+.site-header-actions .account-dropdown-menu button {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #37003c;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.site-header-actions .account-dropdown-menu button:hover,
+.site-header-actions .account-dropdown-menu button:focus-visible {
+  background: #f4eef5;
+}
+
+.site-header-actions .account-dropdown-menu .account-dropdown-logout {
+  color: #ae174d;
+}
+
+.account-dropdown-error {
+  margin: 5px 8px 4px;
+  color: #ae174d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@keyframes account-menu-enter {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 800px) {
+  .site-header-actions .account-dropdown-trigger {
+    min-height: 38px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .account-dropdown-menu {
+    top: calc(100% + 8px);
+    width: 164px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-dropdown-menu { animation: none; }
+  .account-dropdown-chevron { transition: none; }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { navigate } from '../../shared/lib/navigation'
 import { SiteHeader } from '../../shared/ui/SiteHeader'
+import { AccountMenu } from '../auth/components/AccountMenu'
 import { AuthenticationRequiredError, getCurrentUser } from '../auth/api/session'
 import type { User } from '../auth/api/session'
 import { loadSquadLiveData, loadSquadPageData, saveSquad, searchPlayers, setActiveChip, updateSquadProfile } from './api/squadApi'
@@ -542,7 +543,7 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   }).format(new Date(editableGameweek.deadline_time)) : null
 
   return <main className="min-h-screen bg-[#f4f1f5] pb-16 text-ink">
-    <SiteHeader />
+    <SiteHeader actions={<AccountMenu />} />
 
     <div className="mx-auto max-w-[1440px] px-3 pt-6 tablet:px-8 tablet:pt-8">
       {message && <p className={`mb-5 rounded-xl px-4 py-3 text-xs font-bold ${successfulMessage ? 'bg-[#ddf8e7] text-[#05633d]' : 'bg-[#fff1f5] text-[#8b0030]'}`} role="status">{message}</p>}

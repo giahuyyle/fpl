@@ -338,6 +338,7 @@ describe('SquadPage', () => {
     expect(window.location.pathname).toBe('/')
     window.history.replaceState({}, '', '/squad')
     await user.click(screen.getByRole('button', { name: 'Account' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Settings' }))
     expect(window.location.pathname).toBe('/account')
     window.history.replaceState({}, '', '/squad')
     await user.click(screen.getByRole('button', { name: 'Pick team' }))

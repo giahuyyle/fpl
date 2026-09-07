@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SiteHeader } from '../../shared/ui/SiteHeader'
+import { AccountMenu } from '../auth/components/AccountMenu'
 import { Icon } from '../../shared/ui/Icon'
 import { FixturesPanel } from '../squad/components/FixturesPanel'
 import { teamBadge } from '../squad/squadConfig'
@@ -18,7 +19,7 @@ export function LeaguePage({ section }: { section: Section }) {
     return () => { active = false }
   }, [attempt])
   const title = section === 'matches' ? `Premier League Matches${data ? ` ${data.season.name}` : ''}` : section === 'table' ? 'Table' : 'Players'
-  return <div className="league-page"><SiteHeader /><main>
+  return <div className="league-page"><SiteHeader actions={<AccountMenu />} /><main>
     <section className="league-hero"><div className="league-container"><p>Premier League</p><h1>{title}</h1></div></section>
     <div className="league-container league-content">
       {error ? <div className="league-card league-message" role="alert"><h2>Unable to load this page</h2><p>{error}</p><button onClick={() => { setError(''); setAttempt(n => n + 1) }}>Try again</button></div> : !data ? <p className="league-card league-message" role="status">Loading {section}…</p> : section === 'players' ? <PlayersDirectory data={data} /> : section === 'matches' ? <Matches data={data} /> : <LeagueTable data={data} />}

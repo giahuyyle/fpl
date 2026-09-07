@@ -205,7 +205,8 @@ describe('App', () => {
     window.history.replaceState({}, '', '/account')
     render(<App />)
 
-    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+    await user.click(await screen.findByRole('button', { name: 'Account' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Logout' }))
     expect(await screen.findByRole('heading', { name: /Ready for the next/i })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/auth/v1/logout', {
       method: 'POST',
