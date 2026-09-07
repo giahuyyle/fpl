@@ -1,0 +1,225 @@
+.player-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(55, 0, 60, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.player-drawer {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  width: min(920px, 72vw);
+  max-width: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f8f6f8;
+  box-shadow: -30px 0 80px rgba(23, 0, 25, 0.3);
+}
+
+.player-drawer > * {
+  flex-shrink: 0;
+}
+
+.player-drawer-close {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  align-self: end;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #37003c;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(55, 0, 60, 0.08);
+}
+
+.player-drawer-hero {
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: linear-gradient(112deg, #04f5ff, #8a46ff);
+  color: #37003c;
+}
+
+.player-drawer-hero-inner {
+  display: flex;
+  min-height: 190px;
+  align-items: stretch;
+  gap: 28px;
+  padding: 16px 40px 0;
+}
+
+.player-drawer-portrait {
+  display: grid;
+  width: 240px;
+  flex: 0 0 auto;
+  place-items: end center;
+  overflow: hidden;
+}
+
+.player-drawer-portrait > img {
+  min-height: 170px;
+}
+
+.player-drawer-identity {
+  min-width: 0;
+  align-self: center;
+  padding-bottom: 16px;
+}
+
+.player-drawer-price {
+  margin-top: 10px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(55, 0, 60, 0.06);
+}
+
+.player-drawer-stats {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(78px, 1fr));
+  margin-top: 10px;
+  overflow-x: auto;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(55, 0, 60, 0.06);
+}
+
+.player-drawer-stats > div {
+  min-width: 78px;
+  padding: 17px 10px;
+  border-left: 1px solid #eee8ef;
+}
+
+.player-drawer-stats > div:first-child {
+  border-left: 0;
+}
+
+.player-drawer-stats dt {
+  color: #8a728e;
+  font-size: 10px;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.player-drawer-stats dd {
+  margin-top: 5px;
+  color: #37003c;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.player-drawer-fixtures {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(74px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.player-drawer-season {
+  margin-top: 16px;
+}
+
+.player-drawer-season h3 {
+  margin: 0 0 10px 2px;
+  color: #37003c;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.player-drawer-table-scroll {
+  overflow-x: auto;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(55, 0, 60, 0.06);
+}
+
+.player-drawer-season table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  color: #37003c;
+  font-size: 11px;
+  text-align: center;
+}
+
+.player-drawer-season th,
+.player-drawer-season td {
+  padding: 14px 10px;
+  border-bottom: 1px solid #eee8ef;
+}
+
+.player-drawer-season thead th {
+  color: #806b84;
+  font-size: 9px;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+
+.player-drawer-season th:first-child {
+  min-width: 90px;
+  text-align: left;
+}
+
+.player-drawer-season tbody th,
+.player-drawer-season tbody td {
+  font-weight: 700;
+}
+
+.player-drawer-actions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 2;
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 20px;
+  background: linear-gradient(transparent, #f8f6f8 22%);
+}
+
+@media (max-width: 700px) {
+  .player-drawer {
+    width: 100%;
+    padding: 16px;
+  }
+
+  .player-drawer-hero-inner {
+    min-height: 170px;
+    gap: 14px;
+    padding: 14px 18px 0;
+  }
+
+  .player-drawer-portrait {
+    width: 42%;
+  }
+
+  .player-drawer-portrait > img {
+    min-height: 145px;
+  }
+
+  .player-drawer-stats {
+    grid-template-columns: repeat(7, 92px);
+  }
+
+  .player-drawer-fixtures {
+    grid-template-columns: repeat(8, 76px);
+  }
+
+  .player-drawer-actions {
+    bottom: -16px;
+    padding-bottom: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-drawer-backdrop { backdrop-filter: none; }
+}

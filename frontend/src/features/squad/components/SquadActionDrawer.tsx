@@ -3,6 +3,7 @@ import { Icon } from '../../../shared/ui/Icon'
 import type { Fixture, Gameweek, Player, SquadPoints } from '../api/squadApi'
 import { playerPhoto, price, teamBadge } from '../squadConfig'
 import type { SquadMode } from './SquadPitch'
+import './SquadActionDrawer.css'
 
 type Props = {
   mode: SquadMode
@@ -58,9 +59,9 @@ function playerFixtures(
 ): PlayerFixture[] {
   const ordered = [...gameweeks].sort((a, b) => a.number - b.number)
   const selectedIndex = ordered.findIndex((gameweek) => gameweek.number === selectedGameweekNumber)
-  const start = selectedIndex < 0 ? 0 : Math.max(0, Math.min(selectedIndex - 2, ordered.length - 6))
+  const start = selectedIndex < 0 ? 0 : Math.max(0, Math.min(selectedIndex - 3, ordered.length - 8))
 
-  return ordered.slice(start, start + 6).map((gameweek) => {
+  return ordered.slice(start, start + 8).map((gameweek) => {
     const fixture = fixtures.find((item) => item.gameweek_id === gameweek.id
       && (item.home_team.id === player.team.id || item.away_team.id === player.team.id))
     const home = fixture?.home_team.id === player.team.id
@@ -83,17 +84,26 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
   const photo = playerPhoto(player.photo)
   const upcoming = playerFixtures(player, fixtures, gameweeks, pointsHistory, selectedGameweekNumber)
   const firstName = player.first_name.trim()
+  const headlineStats = [
+    ['Form', player.stats.form ?? 0],
+    ['Pts / Match', player.stats.points_per_game ?? 0],
+    ['GW Pts', player.stats.event_points ?? 0],
+    ['Total Pts', player.stats.total_points ?? 0],
+    ['Bonus', player.stats.bonus ?? 0],
+    ['ICT Index', player.stats.ict_index ?? 0],
+    ['Selected', `${player.stats.selected_by_percent ?? 0}%`],
+  ]
 
-  return <div className="fixed inset-0 z-50 bg-pl-purple/70 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <aside aria-label={`${player.web_name} actions`} aria-modal="true" className="absolute inset-y-0 right-0 flex w-full max-w-[460px] flex-col overflow-y-auto bg-[#f8f6f8] p-5 shadow-[-30px_0_80px_#1700194d] tablet:p-7" role="dialog">
-      <button aria-label="Close player actions" className="ml-auto grid size-10 place-items-center rounded-full border-0 bg-white text-xl text-pl-purple shadow-sm" onClick={onClose} type="button">×</button>
+  return <div className="player-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <aside aria-label={`${player.web_name} actions`} aria-modal="true" className="player-drawer" role="dialog">
+      <button aria-label="Close player actions" className="player-drawer-close" onClick={onClose} type="button">×</button>
 
-      <div className="mt-5 overflow-hidden rounded-[24px] bg-[linear-gradient(120deg,#04f5ff,#8a46ff)] text-pl-purple">
-        <div className="flex min-h-[170px] items-stretch gap-4 px-5 pt-4">
-          <div className="grid w-[44%] shrink-0 place-items-end overflow-hidden">
+      <div className="player-drawer-hero">
+        <div className="player-drawer-hero-inner">
+          <div className="player-drawer-portrait">
             <DrawerPortrait key={photo ?? 'missing'} photo={photo} playerName={player.web_name} />
           </div>
-          <div className="min-w-0 self-center pb-4">
+          <div className="player-drawer-identity">
             <p className="text-sm font-bold">{player.position.name}</p>
             {firstName && firstName.toLocaleLowerCase() !== player.web_name.toLocaleLowerCase() && <p className="mt-3 text-xl leading-none">{firstName}</p>}
             <h2 className="mt-1 break-words font-display text-4xl font-black leading-none">{player.web_name}</h2>
@@ -102,19 +112,20 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-white px-5 py-4 shadow-sm">
+      <div className="player-drawer-price">
         <span className="text-sm text-pl-purple">Price: <b>{price(player.stats.now_cost)}</b></span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl bg-white text-center shadow-sm">
-        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">{marketAction ? 'Total points' : 'Form'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.total_points : player.stats.form}</b></div>
-        <div className="border-x border-[#eee8ef] p-5"><span className="block text-[10px] text-muted">{marketAction ? 'Form' : 'Pts / Match'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.form : player.stats.points_per_game}</b></div>
-        <div className="p-5"><span className="block text-[10px] text-muted underline decoration-dotted underline-offset-4">{marketAction ? 'Pts / Match' : 'Selected'}</span><b className="mt-1 block text-lg text-pl-purple">{marketAction ? player.stats.points_per_game : `${player.stats.selected_by_percent}%`}</b></div>
-      </div>
+      <dl className="player-drawer-stats">
+        {headlineStats.map(([label, value]) => <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>)}
+      </dl>
 
       {upcoming.length > 0 && <section aria-label="Player fixtures" className="mt-4 rounded-2xl bg-white px-4 py-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between px-1"><h3 className="text-sm font-black text-pl-purple">Form</h3><span className="text-sm font-black text-pl-purple">Fixtures</span></div>
-        <div className="grid grid-cols-3 gap-2 tablet:grid-cols-6">
+        <div className="player-drawer-fixtures">
           {upcoming.map(({ gameweek, opponent, opponentLabel, difficulty, points }) => <div className="min-w-0 text-center" key={gameweek.id}>
             <span className="block text-[9px] text-muted">GW{gameweek.number}</span>
             <div className="mx-auto mt-2 grid size-10 place-items-center">{opponent ? <img alt={`${opponent.name} crest`} className="max-h-9 max-w-9 object-contain" src={teamBadge(opponent.code)} /> : <span className="text-lg text-[#c9c2cb]">—</span>}</div>
@@ -124,7 +135,17 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
         </div>
       </section>}
 
-      <div className="mt-auto pt-8">
+      <section className="player-drawer-season" aria-labelledby="player-season-heading">
+        <h3 id="player-season-heading">This season</h3>
+        <div className="player-drawer-table-scroll">
+          <table>
+            <thead><tr><th scope="col">Summary</th><th scope="col">Pts</th><th scope="col">Starts</th><th scope="col">Minutes</th><th scope="col">GS</th><th scope="col">A</th><th scope="col">CS</th><th scope="col">GC</th><th scope="col">Bonus</th><th scope="col">ICT</th><th scope="col">DC</th></tr></thead>
+            <tbody><tr><th scope="row">Totals</th><td>{player.stats.total_points ?? 0}</td><td>{player.stats.starts ?? 0}</td><td>{player.stats.minutes ?? 0}</td><td>{player.stats.goals_scored ?? 0}</td><td>{player.stats.assists ?? 0}</td><td>{player.stats.clean_sheets ?? 0}</td><td>{player.stats.goals_conceded ?? 0}</td><td>{player.stats.bonus ?? 0}</td><td>{player.stats.ict_index ?? 0}</td><td>{player.stats.defensive_contribution ?? 0}</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="player-drawer-actions">
         {marketAction && <button className="w-full rounded-xl bg-pl-purple px-4 py-3 text-xs font-bold uppercase tracking-[.08em] text-white disabled:bg-[#d8cfdc] disabled:text-[#88768c]" disabled={marketAction.disabled} onClick={marketAction.onAdd} type="button">{marketAction.disabled ? 'Already selected' : 'Add player'}</button>}
         {mode === 'pick-team' && <>
           <div className="grid grid-cols-2 gap-3">
