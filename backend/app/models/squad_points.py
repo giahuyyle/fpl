@@ -3,6 +3,12 @@ from app.models.gameweek import GameweekResponse
 from app.models.player_search import PlayerSearchItem
 
 
+class PointsBreakdownItem(ORMResponseModel):
+    statistic: str
+    value: int
+    points: int
+
+
 class ScoredPickResponse(ORMResponseModel):
     player_id: int
     slot: int
@@ -14,6 +20,7 @@ class ScoredPickResponse(ORMResponseModel):
     was_auto_subbed: bool
     is_captain: bool
     is_vice_captain: bool
+    points_breakdown: list[PointsBreakdownItem]
     player: PlayerSearchItem
 
 

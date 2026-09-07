@@ -197,7 +197,12 @@ def test_gw1_and_gw2_are_backfilled_and_scored_from_current_squad(session: Sessi
     assert result.total_points == snapshots[1].total_points
     assert len(result.picks) == 15
     assert next(pick for pick in result.picks if pick.slot == 3).played is False
-    assert next(pick for pick in result.picks if pick.slot == 4).played is True
+    played_pick = next(pick for pick in result.picks if pick.slot == 4)
+    assert played_pick.played is True
+    assert played_pick.points_breakdown[0].statistic == "Minutes played"
+    assert played_pick.points_breakdown[0].value == 90
+    assert sum(item.points for item in played_pick.points_breakdown) == played_pick.points
+    assert next(pick for pick in result.picks if pick.slot == 3).points_breakdown == []
     assert [item.gameweek.number for item in SquadPointsService(session).list_points(user.id, market.season_id)] == [1, 2]
 
     placeholder = SquadPointsService(session).get_points(9999, market.season_id, 1)

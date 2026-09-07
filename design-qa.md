@@ -1,40 +1,41 @@
-# Player sidebar QA
+# Gameweek player sidebar QA
 
 final result: passed
 
 ## Scope
 
-Expand the transfer player sidebar to follow the supplied Premier League
-reference while preserving the app's existing data and Add-player flow.
+Show a compact gameweek points sidebar when a viewed squad player has played,
+and retain the full player profile for players who have not played.
 
 ## Evidence
 
-- User reference: `/var/folders/45/9x8czf656y16dbbb50gp59p40000gn/T/codex-clipboard-fa7428ed-bf1d-42f0-b01f-869f6ac51a60.png`.
-- Desktop browser inspection: 1280 × 720 CSS viewport with Tzolakis open from
-  `/squad/transfers`.
-- Narrow browser inspection: 678 × 1118 CSS viewport with the same player open.
-- Browser console inspected during the drawer flow; no application errors were
-  present.
+- User reference: `/var/folders/45/9x8czf656y16dbbb50gp59p40000gn/T/codex-clipboard-7f9ca287-4c15-4dbf-9503-7b1dd1afa1a4.png`.
+- Live local squad inspected on `/squad` for Gameweek 3.
+- Played case: David Raya, Arsenal 2–1 Chelsea, 3 points.
+- Unplayed case: Jurriën Timber, with the existing full profile shown.
+- Narrow browser viewport: 678 × 1118 CSS pixels.
+- Desktop behavior is covered by the fixed 430px panel layout and the full
+  responsive component test suite.
 
 ## Visual findings
 
-1. The desktop drawer uses a wide side-panel proportion with the underlying
-   transfer market visible through a purple backdrop.
-2. The gradient identity banner gives the player portrait, position, full name,
-   and club clear hierarchy without cropping or flex compression.
-3. Price is separated into its own card. Form, Pts / Match, GW Pts, Total Pts,
-   Bonus, ICT Index, and Selected align in a seven-column strip.
-4. Eight gameweeks fit in the desktop fixture row; narrow screens can scroll
-   the stat strip, fixtures, and season table horizontally.
-5. The season table reports real cumulative player data supplied by the API.
-   It does not fabricate unavailable per-match history.
-6. The bottom action remains available while drawer content scrolls.
-7. No remaining P0, P1, or P2 visual or interaction findings.
+1. The compact drawer follows the reference hierarchy: player name, result
+   card, points breakdown, and a persistent full-profile action.
+2. Club crests, team names, final score, and fixture status remain legible in
+   the narrow layout.
+3. Breakdown columns align statistic, value, and awarded points, with a clear
+   total row.
+4. The overlay and narrow drawer preserve the established Premier League color,
+   radius, type, and elevation system.
+5. No P0, P1, or P2 visual or interaction findings remain.
 
-## Interaction checks
+## Interaction and data checks
 
-- The close button and backdrop dismiss the drawer.
-- Add player retains the transfer flow and closes after a successful addition.
-- Existing squad actions remain available when the drawer opens from the pitch.
-- Tests cover the headline stats, season table, fixture region, and Add action.
-- Full frontend verification passed: 62 tests, ESLint, and production build.
+- A player marked as played opens the gameweek points breakdown.
+- An unplayed player opens the normal full profile directly.
+- “View full profile” switches from the breakdown to the normal profile.
+- The close button and backdrop continue to dismiss both drawer states.
+- The backend uses stored gameweek stats and season scoring rules; breakdown
+  rows reconcile to the official player total.
+- Backend: 116 tests passed with 95.02% coverage.
+- Frontend: 62 tests passed; ESLint and the production build passed.

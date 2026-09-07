@@ -92,6 +92,7 @@ function pointsFor(gameweek: Gameweek, squad: Squad, playerPoints = 1): SquadPoi
     was_auto_subbed: false,
     is_captain: pick.is_captain,
     is_vice_captain: pick.is_vice_captain,
+    points_breakdown: [{ statistic: 'Minutes played', value: 90, points: playerPoints }],
     player: pick.player,
   }))
   return {
@@ -638,6 +639,7 @@ describe('SquadPage', () => {
         was_auto_subbed: false,
         is_captain: pick.is_captain,
         is_vice_captain: pick.is_vice_captain,
+        points_breakdown: [{ statistic: 'Minutes played', value: 90, points: pick.slot }],
         player: pick.player,
       })),
     }
@@ -655,6 +657,7 @@ describe('SquadPage', () => {
   })
 
   it('shows the fixture until a player has played in the selected gameweek', async () => {
+    const user = userEvent.setup()
     const complete = squadFrom(allPlayers, true)
     const gameweek: Gameweek = {
       id: 1, name: 'Gameweek 1', number: 1,
@@ -676,6 +679,24 @@ describe('SquadPage', () => {
     expect(within(unplayedCard).getByText('TWO (H)')).toBeInTheDocument()
     expect(within(unplayedCard).queryByText('0 pts')).not.toBeInTheDocument()
     expect(within(playedCard).getByText('0 pts')).toBeInTheDocument()
+
+    await user.click(unplayedCard)
+    const normalDrawer = screen.getByRole('dialog', { name: 'Player 01 actions' })
+    expect(within(normalDrawer).getByText('This season')).toBeInTheDocument()
+    expect(within(normalDrawer).queryByText('Points breakdown')).not.toBeInTheDocument()
+    await user.click(within(normalDrawer).getByRole('button', { name: 'Close player actions' }))
+
+    points.picks[1].points_breakdown = [
+      { statistic: 'Minutes played', value: 90, points: 2 },
+      { statistic: 'Goals conceded', value: 2, points: -1 },
+    ]
+    await user.click(playedCard)
+    const pointsDrawer = screen.getByRole('dialog', { name: 'Player 02 gameweek points' })
+    expect(within(pointsDrawer).getByRole('heading', { name: 'First2 Last2' })).toBeInTheDocument()
+    expect(within(pointsDrawer).getByText('Points breakdown')).toBeInTheDocument()
+    expect(within(pointsDrawer).getByRole('row', { name: 'Goals conceded 2 -1 pts' })).toBeInTheDocument()
+    await user.click(within(pointsDrawer).getByRole('button', { name: 'View full profile' }))
+    expect(screen.getByRole('dialog', { name: 'Player 02 actions' })).toBeInTheDocument()
   })
 
   it('shows budget and club-limit feedback before saving', async () => {

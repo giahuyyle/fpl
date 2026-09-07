@@ -81,9 +81,16 @@ function playerFixtures(
 }
 
 export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [], pointsHistory = [], selectedGameweekNumber, marketAction, removed = false, isStarter = false, isCaptain = false, isViceCaptain = false, onCaptain, onClose, onRemove, onRestore, onSelectReplacement, onSubstitute, onViceCaptain }: Props) {
+  const [showFullProfile, setShowFullProfile] = useState(false)
   const photo = playerPhoto(player.photo)
   const upcoming = playerFixtures(player, fixtures, gameweeks, pointsHistory, selectedGameweekNumber)
   const firstName = player.first_name.trim()
+  const selectedSummary = pointsHistory.find((summary) => summary.gameweek.number === selectedGameweekNumber)
+  const selectedPick = selectedSummary?.picks.find((pick) => pick.player_id === player.id)
+  const selectedGameweekName = selectedSummary?.gameweek.name ?? `Gameweek ${selectedGameweekNumber ?? ''}`.trim()
+  const selectedFixture = fixtures.find((fixture) => fixture.gameweek_id === selectedSummary?.gameweek.id
+    && (fixture.home_team.id === player.team.id || fixture.away_team.id === player.team.id))
+  const showGameweekBreakdown = mode === 'view' && selectedPick?.played && !showFullProfile
   const headlineStats = [
     ['Form', player.stats.form ?? 0],
     ['Pts / Match', player.stats.points_per_game ?? 0],
@@ -93,6 +100,48 @@ export function SquadActionDrawer({ mode, player, fixtures = [], gameweeks = [],
     ['ICT Index', player.stats.ict_index ?? 0],
     ['Selected', `${player.stats.selected_by_percent ?? 0}%`],
   ]
+
+  if (showGameweekBreakdown) {
+    const fullName = [player.first_name, player.last_name].filter(Boolean).join(' ') || player.web_name
+    return <div className="player-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <aside aria-label={`${player.web_name} gameweek points`} aria-modal="true" className="player-drawer player-drawer--gameweek" role="dialog">
+        <button aria-label="Close player actions" className="player-drawer-close" onClick={onClose} type="button">×</button>
+        <h2 className="player-gameweek-name">{fullName}</h2>
+
+        {selectedFixture && <section aria-label={`${selectedGameweekName} fixture`} className="player-gameweek-match">
+          <div className="player-gameweek-club">
+            <span>{selectedFixture.home_team.name}</span>
+            <img alt={`${selectedFixture.home_team.name} crest`} src={teamBadge(selectedFixture.home_team.code)} />
+          </div>
+          <div className="player-gameweek-score">
+            <strong>{selectedFixture.home_score ?? '–'} - {selectedFixture.away_score ?? '–'}</strong>
+            <span>{selectedFixture.finished ? 'FT' : selectedFixture.started ? 'LIVE' : selectedGameweekName}</span>
+          </div>
+          <div className="player-gameweek-club player-gameweek-club--away">
+            <img alt={`${selectedFixture.away_team.name} crest`} src={teamBadge(selectedFixture.away_team.code)} />
+            <span>{selectedFixture.away_team.name}</span>
+          </div>
+        </section>}
+
+        <section className="player-gameweek-breakdown" aria-labelledby="points-breakdown-heading">
+          <h3 id="points-breakdown-heading">Points breakdown</h3>
+          <table>
+            <thead><tr><th scope="col">Statistic</th><th scope="col">Value</th><th scope="col">Points</th></tr></thead>
+            <tbody>
+              {selectedPick.points_breakdown.map((item) => <tr key={item.statistic}>
+                <th scope="row">{item.statistic}</th><td>{item.value}</td><td>{item.points} pts</td>
+              </tr>)}
+              <tr className="player-gameweek-total"><th scope="row">Total</th><td>—</td><td>{selectedPick.points} pts</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <div className="player-drawer-actions">
+          <button className="w-full rounded-xl bg-pl-purple px-4 py-3 text-sm font-bold text-white" onClick={() => setShowFullProfile(true)} type="button">View full profile</button>
+        </div>
+      </aside>
+    </div>
+  }
 
   return <div className="player-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <aside aria-label={`${player.web_name} actions`} aria-modal="true" className="player-drawer" role="dialog">

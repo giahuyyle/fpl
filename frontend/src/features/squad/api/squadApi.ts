@@ -60,6 +60,11 @@ export type ScoredPick = {
   was_auto_subbed: boolean
   is_captain: boolean
   is_vice_captain: boolean
+  points_breakdown: Array<{
+    statistic: string
+    value: number
+    points: number
+  }>
   player: Player
 }
 
