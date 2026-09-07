@@ -32,7 +32,10 @@ and retain the full player profile for players who have not played.
 ## Interaction and data checks
 
 - A player marked as played opens the gameweek points breakdown.
-- An unplayed player opens the normal full profile directly.
+- An unplayed player shows 0 points and opens the normal full profile directly.
+- Substitute cards show each player's raw gameweek points. Their multiplier
+  controls whether those points enter the squad total; bench boost assigns a
+  multiplier of one to all four substitutes.
 - “View full profile” switches from the breakdown to the normal profile.
 - The close button and backdrop continue to dismiss both drawer states.
 - The backend uses stored gameweek stats and season scoring rules; breakdown

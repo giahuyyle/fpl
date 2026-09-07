@@ -233,9 +233,13 @@ class SquadPointsService:
                     lineup_position=pick.lineup_position,
                     played=(stats := stats_by_player.get(pick.player_id)) is not None
                     and stats.played,
-                    points=pick.points,
+                    points=pick.points if stats is not None and stats.played else 0,
                     multiplier=pick.multiplier,
-                    effective_points=pick.effective_points,
+                    effective_points=(
+                        pick.effective_points
+                        if stats is not None and stats.played
+                        else 0
+                    ),
                     was_auto_subbed=pick.was_auto_subbed,
                     is_captain=pick.is_captain,
                     is_vice_captain=pick.is_vice_captain,

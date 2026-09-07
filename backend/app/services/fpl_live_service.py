@@ -441,7 +441,7 @@ class FPLLiveService:
     ) -> None:
         for pick in picks:
             stats = stats_by_player.get(pick.player_id)
-            pick.points = stats.total_points if stats else 0
+            pick.points = stats.total_points if stats and stats.played else 0
             pick.multiplier = 1 if pick.lineup_position <= 11 else 0
             pick.was_auto_subbed = False
 
@@ -510,7 +510,7 @@ class FPLLiveService:
             pick.effective_points = pick.points * pick.multiplier
         snapshot.points = sum(pick.effective_points for pick in picks)
         snapshot.points_on_bench = sum(
-            pick.points for pick in picks if pick.multiplier == 0
+            pick.points for pick in picks if pick.lineup_position > 11
         )
 
     @staticmethod

@@ -654,9 +654,12 @@ describe('SquadPage', () => {
     const pitch = await screen.findByRole('region', { name: 'Saved starting squad' })
     expect(within(pitch).getByText('26 pts')).toBeInTheDocument()
     expect(within(pitch).queryByText('13 pts')).not.toBeInTheDocument()
+    const substitutes = within(pitch).getByText('Substitutes').parentElement!
+    expect(within(substitutes).getByText('12 pts')).toBeInTheDocument()
+    expect(within(substitutes).getByText('15 pts')).toBeInTheDocument()
   })
 
-  it('shows the fixture until a player has played in the selected gameweek', async () => {
+  it('shows zero points and the normal profile when a player did not play', async () => {
     const user = userEvent.setup()
     const complete = squadFrom(allPlayers, true)
     const gameweek: Gameweek = {
@@ -676,8 +679,8 @@ describe('SquadPage', () => {
     const pitch = await screen.findByRole('region', { name: 'Saved starting squad' })
     const unplayedCard = within(pitch).getByText('Player 01').parentElement!
     const playedCard = within(pitch).getByText('Player 02').parentElement!
-    expect(within(unplayedCard).getByText('TWO (H)')).toBeInTheDocument()
-    expect(within(unplayedCard).queryByText('0 pts')).not.toBeInTheDocument()
+    expect(within(unplayedCard).getByText('0 pts')).toBeInTheDocument()
+    expect(within(unplayedCard).queryByText('TWO (H)')).not.toBeInTheDocument()
     expect(within(playedCard).getByText('0 pts')).toBeInTheDocument()
 
     await user.click(unplayedCard)

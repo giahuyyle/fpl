@@ -233,7 +233,10 @@ export function SquadPage({ routeMode }: SquadPageProps = {}) {
   const selectedGameweek = selectedGameweekIndex >= 0 ? navigableGameweeks[selectedGameweekIndex] : undefined
   const selectedPoints = pointsHistory.find((item) => item.gameweek.number === selectedGameweekNumber)
   const gameweekPlayed = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.played]) ?? [])
-  const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.player_id, pick.effective_points]) ?? [])
+  const gameweekPoints = Object.fromEntries(selectedPoints?.picks.map((pick) => [
+    pick.player_id,
+    pick.lineup_position > 11 ? pick.points : pick.effective_points,
+  ]) ?? [])
   const cardGameweek = mode === 'view' ? selectedGameweek : editableGameweek
   const opponents = opponentsForGameweek(fixtures, cardGameweek?.id)
   const historicalPicks = Object.fromEntries(selectedPoints?.picks.map((pick) => [pick.slot, pick.player]) ?? [])

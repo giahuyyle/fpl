@@ -59,7 +59,7 @@ function PlayerCard({ captainSlot, clickable, gameweekPlayed, gameweekPoints, mo
   viceCaptainSlot: number | null
   onClick: (slot: number) => void
 }) {
-  const token = <PlayerToken context={mode === 'view' && gameweekPlayed ? 'points' : 'opponent'} gameweekPoints={gameweekPoints} opponent={opponent} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} showPrice={mode === 'transfers'} />
+  const token = <PlayerToken context={mode === 'view' && gameweekPlayed !== undefined ? 'points' : 'opponent'} gameweekPoints={gameweekPoints} opponent={opponent} player={player} role={roleFor(slot, captainSlot, viceCaptainSlot)} seasonName={seasonName} showPrice={mode === 'transfers'} />
   if (!clickable) return token
   return <div className="relative mx-auto w-full max-w-[112px] min-w-0">
     {pending && <span className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-pl-pink px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] text-white shadow-md">Swap</span>}

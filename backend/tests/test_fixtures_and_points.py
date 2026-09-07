@@ -196,13 +196,23 @@ def test_gw1_and_gw2_are_backfilled_and_scored_from_current_squad(session: Sessi
     assert result.highest_points == 130
     assert result.total_points == snapshots[1].total_points
     assert len(result.picks) == 15
-    assert next(pick for pick in result.picks if pick.slot == 3).played is False
+    unplayed_pick = next(pick for pick in result.picks if pick.slot == 3)
+    assert unplayed_pick.played is False
+    assert unplayed_pick.points == 0
+    assert unplayed_pick.effective_points == 0
+    bench_pick = next(pick for pick in result.picks if pick.slot == 2)
+    assert bench_pick.lineup_position == 12
+    assert bench_pick.points == 2
+    assert bench_pick.effective_points == 0
+    assert result.points_on_bench == sum(
+        pick.points for pick in result.picks if pick.lineup_position > 11
+    )
     played_pick = next(pick for pick in result.picks if pick.slot == 4)
     assert played_pick.played is True
     assert played_pick.points_breakdown[0].statistic == "Minutes played"
     assert played_pick.points_breakdown[0].value == 90
     assert sum(item.points for item in played_pick.points_breakdown) == played_pick.points
-    assert next(pick for pick in result.picks if pick.slot == 3).points_breakdown == []
+    assert unplayed_pick.points_breakdown == []
     assert [item.gameweek.number for item in SquadPointsService(session).list_points(user.id, market.season_id)] == [1, 2]
 
     placeholder = SquadPointsService(session).get_points(9999, market.season_id, 1)
@@ -355,11 +365,16 @@ def test_point_engine_handles_bench_boost_triple_captain_and_rank_ties(session: 
     snapshot = SquadGameweek(squad_id=1, gameweek_id=1)
     FPLLiveService._score_picks(snapshot, picks, stats, positions, "bboost")
     assert snapshot.points == 32
-    assert snapshot.points_on_bench == 0
+    assert snapshot.points_on_bench == 8
+    assert all(pick.points == 2 for pick in picks[11:])
+    assert all(pick.effective_points == 2 for pick in picks[11:])
 
     FPLLiveService._score_picks(snapshot, picks, stats, positions, "3xc")
     assert picks[0].multiplier == 3
     assert snapshot.points == 26
+    assert snapshot.points_on_bench == 8
+    assert all(pick.points == 2 for pick in picks[11:])
+    assert all(pick.effective_points == 0 for pick in picks[11:])
 
     # During live play, a captain whose fixture has not completed keeps the
     # armband and automatic substitutions wait for final FPL confirmation.
@@ -373,6 +388,8 @@ def test_point_engine_handles_bench_boost_triple_captain_and_rank_ties(session: 
         finalized=False,
     )
     assert picks[0].multiplier == 2
+    assert picks[0].points == 0
+    assert picks[0].effective_points == 0
     assert picks[1].multiplier == 1
     assert all(pick.multiplier == 0 for pick in picks[11:])
     assert not any(pick.was_auto_subbed for pick in picks)
