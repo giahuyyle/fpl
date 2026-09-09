@@ -37,6 +37,23 @@ describe('App', () => {
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()
   })
 
+  it('renders a custom 404 page for an unknown route and returns home', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+    window.history.replaceState({}, '', '/missing-page')
+
+    render(<App />)
+
+    expect(screen.getByRole('heading', { level: 1, name: /You’ve gone offside/i })).toBeInTheDocument()
+    expect(screen.getByText('ERROR 404')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Make football yours/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Back to home/i }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Make football yours/i })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+  })
+
   it('navigates to login and toggles password visibility', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
